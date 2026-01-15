@@ -36,8 +36,7 @@
 
   <h2>Agent Stats</h2>
   <div class="card grid3">
-    <label>ATK <input id="atkBase" type="number" value="1000" min="0" step="1"/></label>
-    <label><s>ATK Bonus (In-Combat)</s> <input id="atkFlatBonus" type="number" value="0" min="0" step="1"/></label>
+    <label>Total ATK (In-Combat) <input id="atkBase" type="number" value="1000" min="0" step="1"/></label>
     <label>Skill Multiplier (%) <input id="skillMultPct" type="number" value="100" min="0" step="0.1"/></label>
 
     <label>Agent Level <input id="agentLevel" type="number" value="60" min="1" step="1"/></label>
@@ -55,7 +54,6 @@
       </select>
     </label>
 
-    <label><s>Flat “Special Multiplier” (Optional)</s> <input id="specialMult" type="number" value="1" step="0.01"/></label>
 
     <label>Generic DMG% <input id="dmgGenericPct" type="number" value="0" step="0.1"/></label>
     <label>Attribute DMG% <input id="dmgAttrPct" type="number" value="0" step="0.1"/></label>
@@ -63,7 +61,6 @@
 
     <label>Anomaly DMG% <input id="anomDmgPct" type="number" value="0" step="0.1"/></label>
     <label>Disorder DMG% <input id="disorderDmgPct" type="number" value="0" step="0.1"/></label>
-    <label><s>Other DMG%</s> <input id="dmgOtherPct" type="number" value="0" step="0.1"/></label>
 
     <label>PEN Ratio (%) <input id="penRatioPct" type="number" value="0" step="0.1"/></label>
     <label>PEN <input id="penFlat" type="number" value="0" step="1"/></label>
@@ -105,7 +102,6 @@
     <div class="grid3">
       <label>Sheer Force <input id="sheerForce" type="number" value="0" step="1"/></label>
       <label>Sheer DMG Bonus (%) <input id="sheerDmgBonusPct" type="number" value="0" step="0.1"/></label>
-      <label><s>ATK →  Sheer Conversion (%)</s> <input id="atkToSheerPct" type="number" value="30" step="0.1"/></label>
     </div>
   </div>
 
@@ -125,15 +121,6 @@
       <label>DEF Reduction (%) <input id="defReductionPct" type="number" value="0" step="0.1"/></label>
       <label>DEF Ignore (%) <input id="defIgnorePct" type="number" value="0" step="0.1"/></label>
 
-      <label>
-        <s>DEF Multiplier Override (Optional)</s>
-        <input id="defMultOverride" type="number" value="" step="0.01" />
-      </label>
-      <label>
-        <s>Enemy Damage Taken Multiplier (Optional)</s>
-        <input id="enemyDmgTakenMult" type="number" value="" step="0.01" />
-      </label>
-
       <label>Damage Taken +% (Vulnerability) <input id="dmgTakenPct" type="number" value="0" step="0.1"/></label>
       <label>Stunned? <select id="isStunned"><option value="false">No</option><option value="true">Yes</option></select></label>
 
@@ -141,10 +128,6 @@
         Stunned Multiplier (%)
         <input id="stunPct" type="number" value="100" step="1" />
       </label>
-
-      <label>Stunned Damage Taken +% <input id="dmgTakenStunnedPct" type="number" value="0" step="0.1"/></label>
-      <label>Stunned DMG% <input id="dmgVsStunnedPct" type="number" value="0" step="0.1"/></label>
-      <label><s>Daze Vulnerability Multiplier</s> <input id="dazeVulnMult" type="number" value="1" step="0.01"/></label>
     </div>
   </div>
 

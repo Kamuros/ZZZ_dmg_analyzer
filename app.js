@@ -101,8 +101,10 @@
       generic: num("dmgGenericPct"),
       attribute: num("dmgAttrPct"),
       skillType: num("dmgSkillTypePct"),
-      other: num("dmgOtherPct"),
-      vsStunned: stunned ? num("dmgVsStunnedPct") : 0,
+      // Advanced/rare buckets are intentionally omitted from the UI.
+      // Keep them in the model at safe defaults for backward-compat.
+      other: 0,
+      vsStunned: 0,
       anomaly: (mode === "anomaly" || mode === "hybrid") ? num("anomDmgPct") : 0,
       disorder: (mode === "anomaly" || mode === "hybrid") ? num("disorderDmgPct") : 0,
     };
@@ -114,11 +116,13 @@
 
       agent: {
         level: Math.max(1, Math.floor(num("agentLevel", 60))),
+        // UI uses Total ATK (in-combat). Keep legacy split fields but store as base + 0.
         atkBase: num("atkBase", 2000),
-        atkFlatBonus: num("atkFlatBonus", 0),
+        atkFlatBonus: 0,
         attribute: $("attribute").value,
         skillMultPct: num("skillMultPct", 300),
-        specialMult: num("specialMult", 1),
+        // Advanced/rare multiplier removed from UI
+        specialMult: 1,
 
         crit: {
           rate: clamp(num("critRatePct", 50) / 100, 0, 1),
@@ -134,7 +138,8 @@
         rupture: {
           sheerForce: Math.max(0, num("sheerForce")),
           sheerDmgBonusPct: num("sheerDmgBonusPct"),
-          atkToSheerPct: num("atkToSheerPct")
+          // Removed from UI; keep for backward-compat but ignore in math by default
+          atkToSheerPct: 0
         },
 
         anomaly: {
@@ -160,14 +165,16 @@
         },
 
         defReductionPct: num("defReductionPct", 0),
-        defMultOverride: optNum("defMultOverride"),
-        enemyDmgTakenMult: optNum("enemyDmgTakenMult"),
+        // Overrides removed from UI
+        defMultOverride: null,
+        enemyDmgTakenMult: null,
 
         dmgTakenPct: num("dmgTakenPct", 0),
         stunned,
         stunPct: num("stunPct", 100),
-        dmgTakenStunnedPct: stunned ? num("dmgTakenStunnedPct", 0) : 0,
-        dazeVulnMult: num("dazeVulnMult", 1)
+        // Advanced/rare stunned-only modifiers removed from UI
+        dmgTakenStunnedPct: 0,
+        dazeVulnMult: 1
       },
 
       meta: { updatedAt: new Date().toISOString() }
@@ -202,18 +209,14 @@
     const resPct = (i.enemy.resAllPct || 0) + ((i.enemy.resByAttr && i.enemy.resByAttr[attr]) || 0);
     const resMult = 1 - (resPct / 100);
 
-    const defMult = (i.enemy.defMultOverride !== null && i.enemy.defMultOverride !== undefined)
-      ? clamp(i.enemy.defMultOverride, 0, 1)
-      : computeDefMult(i);
+    // Always use computed DEF multiplier (override removed from UI and ignored for simplicity).
+    const defMult = computeDefMult(i);
 
-    const dmgTakenPctTotal = i.enemy.dmgTakenPct + i.enemy.dmgTakenStunnedPct;
-    const dmgTakenMultOverride = (i.enemy.enemyDmgTakenMult !== null && i.enemy.enemyDmgTakenMult !== undefined)
-      ? Math.max(0, i.enemy.enemyDmgTakenMult)
-      : 1;
-    const dmgTakenMult = pctToMult(dmgTakenPctTotal) * dmgTakenMultOverride;
+    // Only keep the standard vulnerability input.
+    const dmgTakenMult = pctToMult(i.enemy.dmgTakenPct);
 
     const stunMult = i.enemy.stunned ? (i.enemy.stunPct / 100) : 1;
-    const dazeVulnMult = i.enemy.stunned ? i.enemy.dazeVulnMult : 1;
+    const dazeVulnMult = 1;
 
     const specialMult = i.agent.specialMult;
 
@@ -371,7 +374,7 @@
     const raw = cfg.raw;
 
     if (cfg.basis === "raw") {
-      if (key === "atkFlatBonus") return { kind: "flat", value: raw.atkFlat };
+      if (key === "atkBase") return { kind: "flat", value: raw.atkFlat };
       if (key === "penFlat" || key === "sheerForce") return { kind: "flat", value: raw.penFlat };
       return { kind: "pct", value: raw.pct };
     }
@@ -380,7 +383,8 @@
     const pctOrRaw = (v) => (typeof v === "number" && !Number.isNaN(v)) ? v : raw.pct;
 
     switch (key) {
-      case "atkFlatBonus":
+      // ATK is provided as a single Total ATK input; we apply ATK deltas to atkBase.
+      case "atkBase":
         return { kind: "flat", value: raw.atkFlat };
 
       case "dmgAttrPct":
@@ -412,13 +416,11 @@
     const df = (d.kind === "flat") ? d.value : deltaCfg.raw.penFlat;
 
     switch (key) {
-      case "atkFlatBonus": j.agent.atkFlatBonus += df; break;
+      case "atkBase": j.agent.atkBase += df; break;
 
       case "dmgGenericPct": j.agent.dmgBuckets.generic += dp; break;
       case "dmgAttrPct": j.agent.dmgBuckets.attribute += dp; break;
       case "dmgSkillTypePct": j.agent.dmgBuckets.skillType += dp; break;
-      case "dmgOtherPct": j.agent.dmgBuckets.other += dp; break;
-      case "dmgVsStunnedPct": j.agent.dmgBuckets.vsStunned += dp; break;
 
       case "critRatePct":
         j.agent.crit.rate = clamp(j.agent.crit.rate + (dp / 100), 0, 1); break;
@@ -426,10 +428,7 @@
         j.agent.crit.dmg += (dp / 100); break;
 
       case "dmgTakenPct": j.enemy.dmgTakenPct += dp; break;
-      case "dmgTakenStunnedPct": j.enemy.dmgTakenStunnedPct += dp; break;
       case "stunPct": j.enemy.stunPct += dp; break;
-      case "dazeVulnMult":
-        j.enemy.dazeVulnMult += 0.05 * (deltaCfg.raw.pct / 5); break;
 
       case "defReductionPct": j.enemy.defReductionPct += dp; break;
       case "penRatioPct": j.agent.penRatioPct += dp; break;
@@ -449,22 +448,18 @@
 
   function statMeta() {
     return [
-      { key:"atkFlatBonus",      label:"ATK Bonus (In-Combat)" },
+      { key:"atkBase",          label:"Total ATK (In-Combat)" },
 
       { key:"dmgGenericPct",     label:"Generic DMG%" },
       { key:"dmgAttrPct",        label:"Attribute DMG%" },
       { key:"dmgSkillTypePct",   label:"Skill DMG% (Basic/Special/Ult)" },
-      { key:"dmgOtherPct",       label:"Other DMG%" },
-      { key:"dmgVsStunnedPct",   label:"Stunned DMG%" },
 
       // Always include crit rate now (so table shows value of more crit chance)
       { key:"critRatePct",       label:"Crit Rate (%)" },
       { key:"critDmgPct",        label:"Crit DMG (%)" },
 
       { key:"dmgTakenPct",       label:"Damage Taken +% (Vulnerability)" },
-      { key:"dmgTakenStunnedPct",label:"Stunned Damage Taken +%" },
       { key:"stunPct",           label:"Stunned Multiplier (%)" },
-      { key:"dazeVulnMult",      label:"Daze Vulnerability Multiplier" },
 
       { key:"defReductionPct",   label:"DEF Reduction (%)" },
       { key:"penRatioPct",       label:"PEN Ratio (%)" },
@@ -496,10 +491,7 @@
       const pctGain = baseOut !== 0 ? (gain / baseOut) * 100 : 0;
 
       let deltaText = "";
-      if (m.key === "dazeVulnMult") {
-        const step = 0.05 * (deltaCfg.raw.pct / 5);
-        deltaText = `+${fmt1(step)} mult`;
-      } else if (m.key === "atkFlatBonus") {
+      if (m.key === "atkBase") {
         deltaText = `+${fmt1(applied.value)} ATK`;
       } else if (applied.kind === "flat") {
         deltaText = `+${fmt1(applied.value)} (flat)`;
@@ -569,20 +561,18 @@
     setVal("mode", d.mode ?? "standard");
 
     setVal("agentLevel", d.agent?.level ?? 60);
-    setVal("atkBase", d.agent?.atkBase ?? d.agent?.atkFlat ?? 2000);
-    setVal("atkFlatBonus", d.agent?.atkFlatBonus ?? 0);
+    // UI uses Total ATK. For older saves, fold atkFlatBonus into the total.
+    const totalAtk = (d.agent?.atkBase ?? d.agent?.atkFlat ?? 2000) + (d.agent?.atkFlatBonus ?? 0);
+    setVal("atkBase", totalAtk);
     setVal("skillMultPct", d.agent?.skillMultPct ?? 300);
     setVal("critRatePct", ((d.agent?.crit?.rate ?? 0.5) * 100));
     setVal("critDmgPct", ((d.agent?.crit?.dmg ?? 1.0) * 100));
     setVal("attribute", d.agent?.attribute ?? "physical");
-    setVal("specialMult", d.agent?.specialMult ?? 1);
 
     const b = d.agent?.dmgBuckets ?? {};
     setVal("dmgGenericPct", b.generic ?? 0);
     setVal("dmgAttrPct", b.attribute ?? 0);
     setVal("dmgSkillTypePct", b.skillType ?? 0);
-    setVal("dmgOtherPct", b.other ?? 0);
-    setVal("dmgVsStunnedPct", b.vsStunned ?? 0);
     setVal("anomDmgPct", b.anomaly ?? 0);
     setVal("disorderDmgPct", b.disorder ?? 0);
 
@@ -599,21 +589,12 @@
     setVal("penFlat", d.agent?.penFlat ?? 0);
     setVal("defIgnorePct", d.agent?.defIgnorePct ?? 0);
 
-    const defOverride = (d.enemy?.defMultOverride !== undefined && d.enemy?.defMultOverride !== null)
-      ? d.enemy.defMultOverride
-      : ((d.enemy?.useManualDefMult) ? (d.enemy?.defMultManual ?? 1) : null);
-    setVal("defMultOverride", defOverride ?? "");
-    setVal("enemyDmgTakenMult", (d.enemy?.enemyDmgTakenMult ?? "") );
-
     setVal("dmgTakenPct", d.enemy?.dmgTakenPct ?? 0);
     setVal("isStunned", String(!!d.enemy?.stunned));
     setVal("stunPct", d.enemy?.stunPct ?? 100);
-    setVal("dmgTakenStunnedPct", d.enemy?.dmgTakenStunnedPct ?? 0);
-    setVal("dazeVulnMult", d.enemy?.dazeVulnMult ?? 1);
 
     setVal("sheerForce", d.agent?.rupture?.sheerForce ?? 0);
     setVal("sheerDmgBonusPct", d.agent?.rupture?.sheerDmgBonusPct ?? 0);
-    setVal("atkToSheerPct", d.agent?.rupture?.atkToSheerPct ?? 30);
 
     setVal("anomMastery", d.agent?.anomaly?.mastery ?? 0);
     setVal("anomProf", d.agent?.anomaly?.proficiency ?? 0);
@@ -634,7 +615,7 @@
         crit: { rate: 0.5, dmg: 1.0 },
         dmgBuckets: { generic:0, attribute:0, skillType:0, other:0, vsStunned:0, anomaly:0, disorder:0 },
         penRatioPct: 0, penFlat: 0, defIgnorePct: 0,
-        rupture: { sheerForce: 0, sheerDmgBonusPct: 0, atkToSheerPct: 30 },
+        rupture: { sheerForce: 0, sheerDmgBonusPct: 0, atkToSheerPct: 0 },
         anomaly: { mastery: 0, proficiency: 0, baseManual: 0, triggersPerRot: 0, disorderTriggersPerRot: 0, specialMult: 1 }
       },
       enemy: {
