@@ -445,8 +445,8 @@
     const dmgTakenMult = pctToMult(dmgTakenPctTotal) * dmgTakenMultOverride;
 
     // Stun & Daze vulnerability zones
-    const stunMult = i.enemy.stunned ? i.enemy.stunPct : 1;
-    const dazeVulnMult = i.enemy.dazeVulnMult;
+    const stunMult = i.enemy.stunned ? (i.enemy.stunPct / 100) : 1;
+    const dazeVulnMult = i.enemy.stunned ? i.enemy.dazeVulnMult : 1;
 
     // Special zone (misc multiplier)
     const specialMult = i.agent.specialMult;
