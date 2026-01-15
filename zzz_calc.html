@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>ZZZ Damage Calc — UI + Marginal Value</title>
+  <title>Zenless Zone Zero Analyzer</title>
   <style>
     :root { --b:#ddd; --muted:#666; }
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 22px; max-width: 1180px; }
@@ -16,7 +16,8 @@
     .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px 16px; }
     .row { display:flex; gap:10px; flex-wrap: wrap; align-items: end; }
     .row > * { flex: 1; min-width: 220px; }
-    label { display: grid; gap: 6px; font-size: 14px; }
+    label { display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
+    label > input, label > select { align-self: stretch; }
     input, select { padding: 9px 10px; border: 1px solid #cfcfcf; border-radius: 12px; font-size: 14px; }
     input[type="checkbox"] { width: 18px; height: 18px; }
     .btn { padding: 10px 12px; border-radius: 12px; border: 1px solid #cfcfcf; background: #f7f7f7; cursor: pointer; font-size: 14px; }
@@ -37,25 +38,12 @@
 
 <body>
   <h1>Zenless Zone Zero — Damage Inputs + “Diminishing Returns” Analyzer</h1>
-  <p class="muted">
-    Focus: compare stat efficiency when some stats <b>add together</b> (DMG% buckets) versus <b>separate multipliers</b> (Crit zone, DEF/RES zone, Damage Taken zone).
-  </p>
-  <div>
-    <span class="pill">PEN Ratio (% DEF ignored)</span>
-    <span class="pill">PEN (flat)</span>
-    <span class="pill">DEF Ignore</span>
-    <span class="pill">DEF Reduction (shred)</span>
-    <span class="pill">RES</span>
-    <span class="pill">Damage Taken%</span>
-    <span class="pill">Stun multiplier</span>
-    <span class="pill">Sheer Force / Sheer DMG Bonus</span>
-  </div>
 
   <!-- Identity / save -->
   <div class="card" style="margin-top:12px;">
     <div class="row">
-      <label>Build name <input id="buildName" value="My Build"/></label>
-      <label>Enemy preset ID <input id="enemyPresetId" value="enemy_default"/></label>
+      <label>Build Name <input id="buildName" value="My Build"/></label>
+      <label>Enemy Preset ID <input id="enemyPresetId" value="Enemy Default"/></label>
       <label>
         Mode
         <select id="mode">
@@ -67,31 +55,26 @@
       </label>
     </div>
     <div class="row" style="margin-top:10px;">
-      <button class="btn primary" id="btnSave">Save (local)</button>
-      <button class="btn" id="btnLoad">Load (local)</button>
+      <button class="btn primary" id="btnSave">Save (Local)</button>
+      <button class="btn" id="btnLoad">Load (Local)</button>
       <button class="btn" id="btnExport">Export JSON</button>
       <button class="btn" id="btnImport">Import JSON</button>
       <input id="importFile" type="file" accept="application/json" class="hidden" />
       <button class="btn" id="btnReset">Reset</button>
     </div>
-    <p class="muted" style="margin:10px 0 0;">
-      Notes for correctness: PEN Ratio ignores a % of target DEF :contentReference[oaicite:2]{index=2}.
-      Sheer Force / Sheer DMG Bonus exist as stats (Rupture) :contentReference[oaicite:3]{index=3}.
-    </p>
   </div>
 
-  <h2>Agent — Base, ATK, Crit</h2>
+  <h2>Agent</h2>
   <div class="card grid3">
-    <label>Base ATK (character) <input id="atkBase" type="number" value="2000" min="0" step="1"/></label>
-    <label>Flat ATK bonus (in-combat) <input id="atkFlatBonus" type="number" value="0" min="0" step="1"/></label>
-    <label>Skill multiplier (%) <input id="skillMultPct" type="number" value="300" min="0" step="0.1"/></label>
+    <label>Base ATK <input id="atkBase" type="number" value="1000" min="0" step="1"/></label>
+    <label>ATK Bonus (In-Combat) <input id="atkFlatBonus" type="number" value="0" min="0" step="1"/></label>
+    <label>Skill Multiplier (%) <input id="skillMultPct" type="number" value="100" min="0" step="0.1"/>
+    </label>
         <label>Agent Level <input id="agentLevel" type="number" value="60" min="1" step="1"/></label>
 
-    <label>CRIT Rate (%) <input id="critRatePct" type="number" value="50" min="0" max="100" step="0.1"/></label>
-    <label>CRIT DMG (%) <input id="critDmgPct" type="number" value="100" min="0" step="0.1"/></label>
-    <label>Hit count (optional) <input id="hitCount" type="number" value="1" min="1" step="1"/></label>
-
-    <label>
+    <label>CRIT Rate (%) <input id="critRatePct" type="number" value="5" min="0" max="100" step="0.1"/></label>
+    <label>CRIT DMG (%) <input id="critDmgPct" type="number" value="50" min="0" step="0.1"/></label>
+<label>
       Attribute
       <select id="attribute">
         <option value="physical">Physical</option>
@@ -102,50 +85,43 @@
       </select>
     </label>
 
-    <label>Flat “Special multiplier” (manual) <input id="specialMult" type="number" value="1" step="0.01"/></label>
-    <label>Rotation time (sec) (optional) <input id="rotationSec" type="number" value="10" min="1" step="1"/></label>
-  </div>
+    <label>Flat “Special Multiplier” (Optional) <input id="specialMult" type="number" value="1" step="0.01"/></label>
+</div>
 
-  <h2>Agent — DMG% buckets (additive within zone)</h2>
+  <h2>Agent — DMG%</h2>
   <div class="card">
-    <p class="muted" style="margin-top:0;">
-      ZZZ-style calculators usually treat “DMG increases by X%” sources as <b>additive with other DMG%</b>, then applied as one multiplier zone (separate from Crit zone).
-      That’s the basis for the “less important when already high” feature.
-    </p>
     <div class="grid3">
       <label>Generic DMG% (“DMG +X%”) <input id="dmgGenericPct" type="number" value="0" step="0.1"/></label>
-      <label>Attribute DMG% (Fire/Ether/etc) <input id="dmgAttrPct" type="number" value="0" step="0.1"/></label>
-      <label>Skill-type DMG% (Basic/EX/Ult) <input id="dmgSkillTypePct" type="number" value="0" step="0.1"/></label>
+      <label>Element DMG% <input id="dmgAttrPct" type="number" value="0" step="0.1"/></label>
+      <label>Skill DMG% (Basic/Special/Ult) <input id="dmgSkillTypePct" type="number" value="0" step="0.1"/></label>
 
-      <label>Anomaly DMG% (if applicable) <input id="anomDmgPct" type="number" value="0" step="0.1"/></label>
-      <label>Disorder DMG% (if applicable) <input id="disorderDmgPct" type="number" value="0" step="0.1"/></label>
-      <label>Other DMG% (misc) <input id="dmgOtherPct" type="number" value="0" step="0.1"/></label>
+      <label>Anomaly DMG% <input id="anomDmgPct" type="number" value="0" step="0.1"/></label>
+      <label>Disorder DMG% <input id="disorderDmgPct" type="number" value="0" step="0.1"/></label>
+      <label>Other DMG% <input id="dmgOtherPct" type="number" value="0" step="0.1"/></label>
     </div>
   </div>
 
-  <h2>Defense interaction — all distinct knobs</h2>
+  <h2>Defense</h2>
   <div class="card">
-    <p class="muted" style="margin-top:0;">
-      Separate inputs:
-      <b>DEF Reduction</b> (enemy DEF debuff), <b>PEN Ratio</b> (% DEF ignored), <b>PEN</b> (flat DEF ignored), and <b>DEF Ignore</b> (its own ignore mechanic).
-      Community sources discuss PEN Ratio being applied after DEF reduction (multiplicative interaction), but order can vary by implementation, so we keep them separate and later wire the exact formula you choose. :contentReference[oaicite:4]{index=4}
-    </p>
 
     <div class="grid3">
-      <label>Enemy Level <input id="enemyLevel" type="number" value="60" min="1" step="1"/></label>
-      <label>Enemy DEF (manual) <input id="enemyDef" type="number" value="0" min="0" step="1"/></label>
-      <label>Enemy RES vs your Attribute (%) <input id="enemyResPct" type="number" value="0" step="0.1"/></label>
+      <label>Enemy Level <input id="enemyLevel" type="number" value="70" min="1" step="1"/></label>
+      <label>Enemy DEF <input id="enemyDef" type="number" value="953" min="0" step="1"/></label>
+      <label>Enemy Elemental RES (%) <input id="enemyResPct" type="number" value="0" step="0.1"/></label>
 
-      <label>DEF Reduction (%) (shred) <input id="defReductionPct" type="number" value="0" step="0.1"/></label>
-      <label>PEN Ratio (% DEF ignored) <input id="penRatioPct" type="number" value="0" step="0.1"/></label>
-      <label>PEN (flat DEF ignored) <input id="penFlat" type="number" value="0" step="1"/></label>
+      <label>DEF Reduction (%) <input id="defReductionPct" type="number" value="0" step="0.1"/></label>
+      <label>PEN Ratio (%) <input id="penRatioPct" type="number" value="0" step="0.1"/></label>
+      <label>PEN <input id="penFlat" type="number" value="0" step="1"/></label>
 
-      <label>DEF Ignore (%) (distinct) <input id="defIgnorePct" type="number" value="0" step="0.1"/></label>
-      <label>Manual DEF multiplier override? <span style="display:flex; gap:10px; align-items:center;">
-        <input id="useManualDefMult" type="checkbox"/>
-        <span class="muted">Use value at right.</span>
-      </span></label>
-      <label>DEF multiplier (manual) <input id="defMultManual" type="number" value="1" step="0.01"/></label>
+      <label>DEF Ignore (%) <input id="defIgnorePct" type="number" value="0" step="0.1"/></label>
+      <label>
+        DEF Multiplier Override (Optional)
+        <input id="defMultOverride" type="number" value="" step="0.01" placeholder="Leave blank to auto-calc" />
+      </label>
+      <label>
+        Enemy Damage Taken Multiplier (Optional)
+        <input id="enemyDmgTakenMult" type="number" value="" step="0.01" placeholder="e.g., 0.75 for -25% DMG" />
+      </label>
     </div>
   </div>
 
@@ -270,6 +246,16 @@
     const n = Number(v);
     return Number.isFinite(n) ? n : fallback;
   };
+
+  // Optional numeric input: returns null when blank/invalid
+  const optNum = (id) => {
+    const el = $(id);
+    const v = el?.value;
+    if (v === "" || v === null || v === undefined) return null;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  };
+
   const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
   const pctToMult = (pct) => 1 + (pct / 100);
 
@@ -350,7 +336,7 @@
     };
 
     return {
-      schemaVersion: 2,
+      schemaVersion: 3,
       buildName: $("buildName").value.trim() || "My Build",
       enemyPresetId: $("enemyPresetId").value.trim() || "enemy_default",
       mode,
@@ -361,7 +347,6 @@
         atkFlatBonus: num("atkFlatBonus", 0),
         attribute: $("attribute").value,
         skillMultPct: num("skillMultPct", 300),
-        hitCount: Math.max(1, Math.floor(num("hitCount", 1))),
         specialMult: num("specialMult", 1),
 
         crit: {
@@ -398,8 +383,8 @@
         resPct: num("enemyResPct", 0),
 
         defReductionPct: num("defReductionPct", 0),
-        useManualDefMult: $("useManualDefMult").checked,
-        defMultManual: num("defMultManual", 1),
+        defMultOverride: optNum("defMultOverride"),
+        enemyDmgTakenMult: optNum("enemyDmgTakenMult"),
 
         dmgTakenPct: num("dmgTakenPct", 0),
         stunned,
@@ -408,8 +393,8 @@
         dazeVulnMult: num("dazeVulnMult", 1)
       },
 
-      meta: { updatedAt: new Date().toISOString(), rotationSec: Math.max(1, Math.floor(num("rotationSec", 10))) }
-    };
+      meta: { updatedAt: new Date().toISOString() }
+    };;
   }
 
   // ===========================
@@ -418,7 +403,7 @@
   // ===========================
   function computeZones(i) {
     // ATK zone: use the ATK value at the moment of impact.
-    // We model this as "Base ATK (character)" + "Flat ATK bonus (in-combat)".
+    // We model this as "Base ATK (Character)" + "Flat ATK Bonus (In-Combat)".
     const atkTotal = (i.agent.atkBase + i.agent.atkFlatBonus);
     const atkEffective = atkTotal;
 
@@ -448,11 +433,16 @@
     // DEF zone: placeholder unless manual override checked
     // We keep distinct inputs (def ignore/pen/pen ratio/def shred) and display them,
     // but we do not “fake” an official formula here. You’ll wire your chosen DEF model later.
-    const defMult = i.enemy.useManualDefMult ? i.enemy.defMultManual : computeDefMult(i);
+    const defMult = (i.enemy.defMultOverride !== null && i.enemy.defMultOverride !== undefined)
+      ? clamp(i.enemy.defMultOverride, 0, 1)
+      : computeDefMult(i);
 
     // Target-side zone (damage taken)
     const dmgTakenPctTotal = i.enemy.dmgTakenPct + i.enemy.dmgTakenStunnedPct;
-    const dmgTakenMult = pctToMult(dmgTakenPctTotal);
+    const dmgTakenMultOverride = (i.enemy.enemyDmgTakenMult !== null && i.enemy.enemyDmgTakenMult !== undefined)
+      ? Math.max(0, i.enemy.enemyDmgTakenMult)
+      : 1;
+    const dmgTakenMult = pctToMult(dmgTakenPctTotal) * dmgTakenMultOverride;
 
     // Stun & Daze vulnerability zones
     const stunMult = i.enemy.stunned ? i.enemy.stunPct : 1;
@@ -497,10 +487,9 @@
     const critPerHit = nonCritPerHit * (1 + z.critDmg);
     const expectedPerHit = nonCritPerHit * (1 + (z.critRate * z.critDmg));
 
-    const nonCritTotal = nonCritPerHit * i.agent.hitCount;
-    const critTotal = critPerHit * i.agent.hitCount;
-    const expectedTotal = expectedPerHit * i.agent.hitCount;
-
+    const nonCritTotal = nonCritPerHit;
+    const critTotal = critPerHit;
+    const expectedTotal = expectedPerHit;
     // Anomaly placeholders (manual)
     const anomalyMult = pctToMult(i.agent.dmgBuckets.anomaly || 0);
     const disorderMult = pctToMult(i.agent.dmgBuckets.disorder || 0);
@@ -530,7 +519,7 @@
     }
     if (i.mode === "rupture") {
       // Rupture path is currently modeled without crit; treat as same for all three.
-      outputNonCrit = sheerPerHit * i.agent.hitCount;
+      outputNonCrit = sheerPerHit;
       outputCrit = outputNonCrit;
       outputExpected = outputNonCrit;
     }
@@ -542,11 +531,7 @@
     }
 
     const output = outputExpected;
-
-    // “Per second” optional
-    const dps = outputExpected / i.meta.rotationSec;
-
-    return {
+return {
       zones: z,
 
       // Standard DMG breakdown (per-hit and total)
@@ -558,13 +543,12 @@
       standard_expected_total: expectedTotal,
 
       anomaly_total: anomalyPerRot + disorderPerRot,
-      rupture_total: sheerPerHit * i.agent.hitCount,
+      rupture_total: sheerPerHit,
 
       output_noncrit: outputNonCrit,
       output_crit: outputCrit,
       output_expected: outputExpected,
-      output,
-      dps
+      output
     };
   }
 
@@ -696,7 +680,7 @@
 
   function statMeta() {
     return [
-      { key:"atkFlatBonus", label:"Flat ATK bonus (in-combat)", delta:"(+ATK)", why:"Base scaling zone (multiplies with DMG/Crit/etc)." },
+      { key:"atkFlatBonus", label:"Flat ATK Bonus (In-Combat)", delta:"(+ATK)", why:"Base scaling zone (multiplies with DMG/Crit/etc)." },
 
       { key:"dmgGenericPct", label:"Generic DMG% (additive)", delta:"(+%)", why:"Additive inside DMG zone → diminishing returns when high." },
       { key:"dmgAttrPct", label:"Attribute DMG% (additive)", delta:"(+%)", why:"Same DMG zone; separated for clarity and future toggles." },
@@ -829,12 +813,9 @@
     setVal("skillMultPct", d.agent?.skillMultPct ?? 300);
     setVal("critRatePct", ((d.agent?.crit?.rate ?? 0.5) * 100));
     setVal("critDmgPct", ((d.agent?.crit?.dmg ?? 1.0) * 100));
-    setVal("hitCount", d.agent?.hitCount ?? 1);
     setVal("attribute", d.agent?.attribute ?? "physical");
     setVal("specialMult", d.agent?.specialMult ?? 1);
-    setVal("rotationSec", d.meta?.rotationSec ?? 10);
-
-    const b = d.agent?.dmgBuckets ?? {};
+const b = d.agent?.dmgBuckets ?? {};
     setVal("dmgGenericPct", b.generic ?? 0);
     setVal("dmgAttrPct", b.attribute ?? 0);
     setVal("dmgSkillTypePct", b.skillType ?? 0);
@@ -851,8 +832,11 @@
     setVal("penFlat", d.agent?.penFlat ?? 0);
     setVal("defIgnorePct", d.agent?.defIgnorePct ?? 0);
 
-    setChk("useManualDefMult", d.enemy?.useManualDefMult ?? false);
-    setVal("defMultManual", d.enemy?.defMultManual ?? 1);
+    const defOverride = (d.enemy?.defMultOverride !== undefined && d.enemy?.defMultOverride !== null)
+      ? d.enemy.defMultOverride
+      : ((d.enemy?.useManualDefMult) ? (d.enemy?.defMultManual ?? 1) : null);
+    setVal("defMultOverride", defOverride ?? "");
+    setVal("enemyDmgTakenMult", (d.enemy?.enemyDmgTakenMult ?? "") );
 
     setVal("dmgTakenPct", d.enemy?.dmgTakenPct ?? 0);
     setVal("isStunned", String(!!d.enemy?.stunned));
@@ -880,7 +864,7 @@
       agent: {
         level: 60,
         atkBase: 2000, atkFlatBonus: 0, attribute: "physical",
-        skillMultPct: 300, hitCount: 1, specialMult: 1,
+        skillMultPct: 300, specialMult: 1,
         crit: { rate: 0.5, dmg: 1.0 },
         dmgBuckets: { generic:0, attribute:0, skillType:0, other:0, vsStunned:0, anomaly:0, disorder:0 },
         penRatioPct: 0, penFlat: 0, defIgnorePct: 0,
@@ -889,10 +873,10 @@
       },
       enemy: {
         level: 60, def: 0, resPct: 0,
-        defReductionPct: 0, useManualDefMult: false, defMultManual: 1,
+        defReductionPct: 0, defMultOverride: null, enemyDmgTakenMult: null,
         dmgTakenPct: 0, stunned: false, stunPct: 100, dmgTakenStunnedPct: 0, dazeVulnMult: 1
       },
-      meta: { rotationSec: 10 }
+      meta: {}
     });
     refresh();
   }
@@ -921,13 +905,12 @@
 
     $("kpi").innerHTML = [
       { t:"Output (mode, expected)", v: fmt0(out.output_expected) },
-      { t:"DPS (expected)", v: fmt0(out.dps) },
-      { t:"Output (mode, non-crit)", v: fmt0(out.output_noncrit) },
+            { t:"Output (mode, non-crit)", v: fmt0(out.output_noncrit) },
       { t:"Output (mode, crit)", v: fmt0(out.output_crit) },
       { t:"Standard per-hit (non-crit)", v: fmt0(out.standard_noncrit_per_hit) },
       { t:"Standard per-hit (crit)", v: fmt0(out.standard_crit_per_hit) },
       { t:"Standard per-hit (expected)", v: fmt0(out.standard_expected_per_hit) },
-      { t:"Standard total (expected)", v: fmt0(out.standard_expected_total) },
+      { t:"Standard Damage (Expected)", v: fmt0(out.standard_expected_total) },
       { t:"Anomaly total (manual)", v: fmt0(out.anomaly_total) },
       { t:"Rupture total (manual)", v: fmt0(out.rupture_total) },
     ].map(x => `<div class="box"><div class="t">${x.t}</div><div class="v">${x.v}</div></div>`).join("");
