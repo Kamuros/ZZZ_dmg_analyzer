@@ -255,16 +255,7 @@
 
     <div class="hr"></div>
 
-    <div class="grid">
-      <div>
-        <div class="muted" style="margin-bottom:8px;">Current input JSON</div>
-        <pre id="jsonPreview"></pre>
-      </div>
-      <div>
-        <div class="muted" style="margin-bottom:8px;">Multiplier breakdown (preview model)</div>
-        <pre id="multPreview"></pre>
-      </div>
-    </div>
+    
   </div>
 
 <script>
@@ -296,6 +287,10 @@
     // Keep trailing zeros like toFixed, but don't change rounding behavior
     return Number.isFinite(r) ? r.toFixed(decimals) : String(value);
   }
+
+  // UI formatting helpers (half-up). Calculations remain full precision.
+  const fmt0 = (v) => fmt(v, 0);
+  const fmt1 = (v) => fmt(v, 1);
 
   // ZZZ-like DEF multiplier (Level Factor table + effective DEF with PEN ratio and flat PEN)
   // Based on common community formula: DEF Mult = LF / (effectiveDEF + LF)
@@ -753,16 +748,17 @@
       const gain = out2 - baseOut;
       const pctGain = baseOut !== 0 ? (gain / baseOut) * 100 : 0;
 
-      // Human-readable Δ text (uses equivalence basis if selected)
+      // Human-readable Δ text (display only; calculations use full precision)
       let deltaText = "";
       if (m.key === "dazeVulnMult") {
-        deltaText = `+${(0.05 * (deltaCfg.raw.pct/5)).toFixed(2)} mult`;
+        const step = 0.05 * (deltaCfg.raw.pct / 5);
+        deltaText = `+${fmt1(step)} mult`;
       } else if (m.key === "atkFlatBonus") {
-        deltaText = `+${applied.value} ATK`;
+        deltaText = `+${fmt1(applied.value)} ATK`;
       } else if (applied.kind === "flat") {
-        deltaText = `+${applied.value} (flat)`;
+        deltaText = `+${fmt1(applied.value)} (flat)`;
       } else {
-        deltaText = `+${applied.value}%`;
+        deltaText = `+${fmt1(applied.value)}%`;
       }
 
       rows.push({ ...m, deltaText, out2, gain, pctGain });
@@ -924,43 +920,18 @@
     const z = out.zones;
 
     $("kpi").innerHTML = [
-      { t:"Output (mode, expected)", v: fmt(out.output_expected, 2) },
-      { t:"DPS (expected)", v: fmt(out.dps, 2) },
-      { t:"Output (mode, non-crit)", v: fmt(out.output_noncrit, 2) },
-      { t:"Output (mode, crit)", v: fmt(out.output_crit, 2) },
-      { t:"Standard per-hit (non-crit)", v: fmt(out.standard_noncrit_per_hit, 2) },
-      { t:"Standard per-hit (crit)", v: fmt(out.standard_crit_per_hit, 2) },
-      { t:"Standard per-hit (expected)", v: fmt(out.standard_expected_per_hit, 2) },
-      { t:"Standard total (expected)", v: fmt(out.standard_expected_total, 2) },
-      { t:"Anomaly total (manual)", v: fmt(out.anomaly_total, 2) },
-      { t:"Rupture total (manual)", v: fmt(out.rupture_total, 2) },
+      { t:"Output (mode, expected)", v: fmt0(out.output_expected) },
+      { t:"DPS (expected)", v: fmt0(out.dps) },
+      { t:"Output (mode, non-crit)", v: fmt0(out.output_noncrit) },
+      { t:"Output (mode, crit)", v: fmt0(out.output_crit) },
+      { t:"Standard per-hit (non-crit)", v: fmt0(out.standard_noncrit_per_hit) },
+      { t:"Standard per-hit (crit)", v: fmt0(out.standard_crit_per_hit) },
+      { t:"Standard per-hit (expected)", v: fmt0(out.standard_expected_per_hit) },
+      { t:"Standard total (expected)", v: fmt0(out.standard_expected_total) },
+      { t:"Anomaly total (manual)", v: fmt0(out.anomaly_total) },
+      { t:"Rupture total (manual)", v: fmt0(out.rupture_total) },
     ].map(x => `<div class="box"><div class="t">${x.t}</div><div class="v">${x.v}</div></div>`).join("");
-
-    $("jsonPreview").textContent = JSON.stringify(i, null, 2);
-    $("multPreview").textContent = JSON.stringify({
-      agentLevel: i.agent.level,
-      enemyLevel: i.enemy.level,
-      atkTotal: z.atkTotal,
-      atkEffective: z.atkEffective,
-      base: z.base,
-      dmgPctTotal: z.dmgPctTotal,
-      dmgMult: z.dmgMult,
-      critMult_expected: z.critMult_expected,
-      defMult_preview: z.defMult,
-      resMult: z.resMult,
-      dmgTakenMult: z.dmgTakenMult,
-      stunMult: z.stunMult,
-      stunPct_input: i.enemy.stunPct,
-      dazeVulnMult: z.dazeVulnMult,
-      specialMult: z.specialMult,
-      // distinct defense knobs shown separately:
-      defReductionPct: i.enemy.defReductionPct,
-      penRatioPct: i.agent.penRatioPct,
-      penFlat: i.agent.penFlat,
-      defIgnorePct: i.agent.defIgnorePct
-    }, null, 2);
-
-    // Marginals
+// Marginals
     const { base, rows } = computeMarginals(i);
     const topN = Number($("topN").value);
     const shown = rows.slice(0, topN);
@@ -969,9 +940,9 @@
       <tr>
         <td>${r.label}</td>
         <td>${r.deltaText}</td>
-        <td>${fmt(r.out2, 2)}</td>
-        <td>${fmt(r.gain, 2)}</td>
-        <td>${fmt(r.pctGain, 3)}%</td>
+        <td>${fmt0(r.out2)}</td>
+        <td>${fmt1(r.gain)}</td>
+        <td>${fmt1(r.pctGain)}%</td>
         <td class="muted">${r.why}</td>
       </tr>
     `).join("");
