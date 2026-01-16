@@ -107,7 +107,7 @@
         dmgTakenStunnedPct: 0,
 
         isStunned: false,
-        stunPct: 100,
+        stunPct: 150,
 
         // extra knob used in statMeta (kept for completeness)
         dazeVulnMult: 1.0,
@@ -207,7 +207,7 @@
 
     i.enemy.dmgTakenPct = num("dmgTakenPct", 0);
     i.enemy.isStunned = ($("isStunned").value === "true");
-    i.enemy.stunPct = num("stunPct", 100);
+    i.enemy.stunPct = num("stunPct", 150);
 
     // Marginal config (legacy fields kept for backward-compatible saves)
     // The UI controls for these were removed; the table uses per-row Δ Stat inputs.
@@ -358,12 +358,38 @@
   }
 
   function computeRuptureOutput(i) {
-    const sheerForce = i.agent.rupture.sheerForce;
-    const sheerBonus = pctToMult(i.agent.rupture.sheerDmgBonusPct);
+    // Rupture (Sheer DMG) model (community-tested).
+    // Key properties consistently reported:
+    // - Uses Sheer Force as the base offensive stat (not ATK).
+    // - Ignores enemy DEF entirely, so DEF/PEN/DEF shred/DEF ignore do not apply.
+    // - Still affected by RES, standard DMG Bonus buckets, CRIT, DMG Taken, and Stun multiplier.
+    // - Sheer DMG Bonus is its own multiplier, separate from regular DMG Bonus.
 
-    // Placeholder: base rupture uses sheerForce scaled by bonus
-    const out = sheerForce * sheerBonus;
-    return { out };
+    const sheerForce = Math.max(0, i.agent.rupture.sheerForce);
+    const skill = i.agent.skillMultPct / 100;
+
+    const dmgPctTotal =
+      i.agent.dmgBuckets.generic +
+      i.agent.dmgBuckets.attribute +
+      i.agent.dmgBuckets.skillType +
+      i.agent.dmgBuckets.other +
+      (i.enemy.isStunned ? i.agent.dmgBuckets.vsStunned : 0);
+
+    const dmgMult = pctToMult(dmgPctTotal);
+    const sheerMult = pctToMult(i.agent.rupture.sheerDmgBonusPct);
+    const resMult = computeResMult(i);
+    const vuln = pctToMult(i.enemy.dmgTakenPct);
+    const stunMult = i.enemy.isStunned ? (i.enemy.stunPct / 100) : 1;
+
+    // No DEF multiplier for rupture: treated as 1 because Sheer DMG ignores enemy DEF.
+    const base = sheerForce * skill * dmgMult * sheerMult * resMult * vuln * stunMult;
+
+    const nonCrit = base;
+    const crit = base * (1 + i.agent.crit.dmg);
+    const cr = clamp(i.agent.crit.rate, 0, 1);
+    const expected = nonCrit * (1 - cr) + crit * cr;
+
+    return { nonCrit, crit, expected };
   }
 
   function computePreviewOutput(i) {
@@ -396,9 +422,11 @@
     if (i.mode === "rupture") {
       return {
         mode: i.mode,
-        rupture: rup.out,
-        output_expected: rup.out,
-        output: rup.out,
+        rupture: rup.expected,
+        output_noncrit: rup.nonCrit,
+        output_crit: rup.crit,
+        output_expected: rup.expected,
+        output: rup.expected,
       };
     }
 
@@ -468,6 +496,30 @@
 
     const rows = [];
     for (const m of statMeta()) {
+      // Hide irrelevant stats by mode
+      if (i.mode === "anomaly" && (m.key === "dmgSkillTypePct" || m.key === "critRatePct" || m.key === "critDmgPct")) continue;
+
+      if (i.mode === "rupture") {
+        // Rupture ignores all DEF-side factors and ATK/PEN. It still uses:
+        // - Sheer Force + Sheer DMG Bonus
+        // - regular DMG% buckets (Generic/Attribute/SkillType)
+        // - CRIT
+        // - DMG Taken and Stun multiplier
+        // RES is applied via enemy inputs (not a marginal stat row)
+        const allowed = new Set([
+          "dmgGenericPct",
+          "dmgAttrPct",
+          "dmgSkillTypePct",
+          "critRatePct",
+          "critDmgPct",
+          "dmgTakenPct",
+          "stunPct",
+          "sheerForce",
+          "sheerDmgBonusPct",
+        ]);
+        if (!allowed.has(m.key)) continue;
+      }
+
       if (i.mode !== "rupture" && (m.key === "sheerForce" || m.key === "sheerDmgBonusPct")) continue;
       if (i.mode === "standard" && (m.key === "anomDmgPct" || m.key === "disorderDmgPct")) continue;
 
@@ -543,18 +595,19 @@
     $("enemyDef").value = data.enemy?.def ?? 0;
 
     $("enemyResAllPct").value = data.enemy?.resAllPct ?? 0;
-    $("enemyResPhysicalPct").value = data.enemy?.resPhysicalPct ?? "";
-    $("enemyResFirePct").value = data.enemy?.resFirePct ?? "";
-    $("enemyResIcePct").value = data.enemy?.resIcePct ?? "";
-    $("enemyResElectricPct").value = data.enemy?.resElectricPct ?? "";
-    $("enemyResEtherPct").value = data.enemy?.resEtherPct ?? "";
+    // Per-attribute RES fields (UI defaults to 0).
+    $("enemyResPhysicalPct").value = data.enemy?.resPhysicalPct ?? 0;
+    $("enemyResFirePct").value = data.enemy?.resFirePct ?? 0;
+    $("enemyResIcePct").value = data.enemy?.resIcePct ?? 0;
+    $("enemyResElectricPct").value = data.enemy?.resElectricPct ?? 0;
+    $("enemyResEtherPct").value = data.enemy?.resEtherPct ?? 0;
 
     $("defReductionPct").value = data.enemy?.defReductionPct ?? 0;
     $("defIgnorePct").value = data.enemy?.defIgnorePct ?? 0;
 
     $("dmgTakenPct").value = data.enemy?.dmgTakenPct ?? 0;
     $("isStunned").value = String(data.enemy?.isStunned ?? false);
-    $("stunPct").value = data.enemy?.stunPct ?? 100;
+    $("stunPct").value = data.enemy?.stunPct ?? 150;
 
     // Legacy (controls removed)
     const dpEl = $("deltaPreset");
@@ -638,7 +691,7 @@
       { t:`DMG (AVG)`,    v: fmt0(out.output_expected) },
     ];
 
-    if (mode === "standard" || mode === "hybrid") {
+    if (mode === "standard" || mode === "hybrid" || mode === "rupture") {
       kpiItems.push({ t:`DMG (Non-Crit)`, v: fmt0(out.output_noncrit) });
       kpiItems.push({ t:`DMG (Crit)`,     v: fmt0(out.output_crit) });
     }
@@ -649,7 +702,7 @@
     }
 
     if (mode === "rupture") {
-      kpiItems.push({ t:`Rupture`, v: fmt0(out.rupture ?? 0) });
+      kpiItems.push({ t:`Rupture (AVG)`, v: fmt0(out.rupture ?? out.output_expected ?? 0) });
     }
 
     $("kpi").innerHTML = kpiItems
