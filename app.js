@@ -44,7 +44,6 @@
   // ===========================
   function defaultInputs() {
     return {
-      saveName: "1",
       mode: "standard",
 
       agent: {
@@ -165,8 +164,6 @@
   // ===========================
   function readInputs() {
     const i = defaultInputs();
-
-    i.saveName = ($("saveName").value || "1");
     i.mode = $("mode").value;
 
     i.agent.level = num("agentLevel", 60);
@@ -231,7 +228,7 @@
   }
 
   function applyModeVisibility(mode) {
-    const showAnom = (mode === "anomaly" || mode === "hybrid");
+    const showAnom = (mode === "anomaly");
     const showRupture = (mode === "rupture");
 
     $("anomalyHeader").classList.toggle("hidden", !showAnom);
@@ -537,15 +534,13 @@
         output: rup.expected,
       };
     }
-
-    // hybrid
+    // Fallback
     return {
-      mode: i.mode,
+      mode: "standard",
       output_noncrit: std.nonCrit,
       output_crit: std.crit,
-      // Hybrid is still a simplistic "add standard hit + anomaly proc" view.
-      output_expected: std.expected + anom.combinedAvg,
-      output: std.expected + anom.combinedAvg,
+      output_expected: std.expected,
+      output: std.expected,
     };
   }
 
@@ -606,7 +601,10 @@
     const rows = [];
     for (const m of statMeta()) {
       // Hide irrelevant stats by mode
-      if (i.mode === "anomaly" && (m.key === "dmgSkillTypePct" || m.key === "critRatePct" || m.key === "critDmgPct")) continue;
+      if (i.mode === "anomaly" && (m.key === "dmgSkillTypePct")) continue;
+
+      // Anomalies generally can't crit. Only show CRIT rows if the special-case toggle is enabled.
+      if (i.mode === "anomaly" && !i.agent.anomaly.allowCrit && (m.key === "critRatePct" || m.key === "critDmgPct")) continue;
 
       if (i.mode === "rupture") {
         // Rupture ignores all DEF-side factors and ATK/PEN. It still uses:
@@ -657,20 +655,35 @@
   // ===========================
   // Save/Load/Export/Import
   // ===========================
-  function getAllSaves() {
+
+  const SAVE_KEY = "zzz_calc_save_v1";
+
+  function getSavedBuild() {
+    // New format (single save)
     try {
-      return JSON.parse(localStorage.getItem("zzz_calc_saves") || "{}");
-    } catch {
-      return {};
-    }
+      const raw = localStorage.getItem(SAVE_KEY);
+      if (raw) return JSON.parse(raw);
+    } catch {}
+
+    // Back-compat: old multi-slot saves (zzz_calc_saves)
+    try {
+      const legacy = JSON.parse(localStorage.getItem("zzz_calc_saves") || "{}");
+      if (legacy && typeof legacy === 'object') {
+        if (legacy["1"]) return legacy["1"];
+        const firstKey = Object.keys(legacy)[0];
+        if (firstKey) return legacy[firstKey];
+      }
+    } catch {}
+
+    return null;
   }
-  function setAllSaves(saves) {
-    localStorage.setItem("zzz_calc_saves", JSON.stringify(saves));
+
+  function setSavedBuild(data) {
+    localStorage.setItem(SAVE_KEY, JSON.stringify(data));
   }
 
   function applyImportedData(data) {
     // minimal: write values back to UI (keeping ids stable)
-    $("saveName").value = data.saveName ?? "1";
     $("mode").value = data.mode ?? "standard";
 
     $("agentLevel").value = data.agent?.level ?? 60;
@@ -736,24 +749,19 @@
 
   function saveBuild() {
     const data = readInputs();
-    const name = (data.saveName || "").trim() || "My Build";
-    const saves = getAllSaves();
-    saves[name] = data;
-    setAllSaves(saves);
-    alert(`Saved "${name}".`);
+    setSavedBuild(data);
+    alert("Saved.");
   }
 
   function loadBuild() {
-    const name = ($("saveName").value || "").trim() || "My Build";
-    const saves = getAllSaves();
-    const data = saves[name];
+    const data = getSavedBuild();
     if (!data) {
-      alert(`No save found named "${name}".`);
+      alert("No saved build found.");
       return;
     }
     applyImportedData(data);
     refresh();
-    alert(`Loaded "${name}".`);
+    alert("Loaded.");
   }
 
   function exportJSON() {
@@ -795,25 +803,24 @@
     applyModeVisibility(i.mode);
 
     const out = computePreviewOutput(i);
-    const anomOut = (i.mode === "anomaly" || i.mode === "hybrid") ? computeAnomalyOutput(i) : null;
+    const anomOut = (i.mode === "anomaly") ? computeAnomalyOutput(i) : null;
 
     const mode = i.mode;
     const labelPrefix =
       (mode === "standard") ? "Output" :
       (mode === "anomaly")  ? "Anomaly Output" :
-      (mode === "rupture")  ? "Rupture Output" :
-      "Combined Output";
+      "Rupture Output";
 
     const kpiItems = [
       { t:`DMG (AVG)`,    v: fmt0(out.output_expected) },
     ];
 
-    if (mode === "standard" || mode === "hybrid" || mode === "rupture") {
+    if (mode === "standard" || mode === "rupture") {
       kpiItems.push({ t:`DMG (Non-Crit)`, v: fmt0(out.output_noncrit) });
       kpiItems.push({ t:`DMG (Crit)`,     v: fmt0(out.output_crit) });
     }
 
-    if (mode === "anomaly" || mode === "hybrid") {
+    if (mode === "anomaly") {
       // Update anomaly info pills (if present in DOM)
       const kindPill = $("anomKindPill");
       const canCritPill = $("anomCanCritPill");
