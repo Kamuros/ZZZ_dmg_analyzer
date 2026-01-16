@@ -9,10 +9,10 @@
 
   // Default deltas (used when the user hasn't overridden a row)
   const DEFAULT_DELTA = {
-    pct: 1,      // +1% for % stats
-    atk: 10,     // +10 ATK
-    penFlat: 10, // +10 PEN
-    sheerForce: 10,
+    pct: 0,      // +1% for % stats
+    atk: 0,     // +10 ATK
+    penFlat: 0, // +10 PEN
+    sheerForce: 0,
   };
 
   const num = (id, fallback = 0) => {
@@ -661,10 +661,8 @@
     $("marginalBody").innerHTML = rows.map(r => {
       const kind = r.applied?.kind ?? "pct";
       const val = r.applied?.value ?? 0;
-
-      const unit = (r.key === "atkBase") ? "ATK"
-                : (kind === "flat") ? "flat"
-                : "%";
+      
+      const unit = (kind === "pct") ? "%" : "";
 
       const step = (kind === "flat") ? 1 : 0.1;
 
