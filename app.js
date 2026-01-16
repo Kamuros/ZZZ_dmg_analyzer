@@ -44,7 +44,8 @@
   // ===========================
   function defaultInputs() {
     return {
-      saveName: "1",
+      // Optional label used only for JSON export/import (not for local Save/Load)
+      jsonName: "",
       mode: "standard",
 
       agent: {
@@ -100,9 +101,12 @@
         level: 70,
         def: 953,
 
-        // Single RES input applied to the agent's current attribute.
-        // (Removed per-attribute RES fields to simplify UI and saves.)
-        resPct: 0,
+        resAllPct: 0,
+        resPhysicalPct: null,
+        resFirePct: null,
+        resIcePct: null,
+        resElectricPct: null,
+        resEtherPct: null,
 
         defReductionPct: 0,
         defIgnorePct: 0,
@@ -163,7 +167,9 @@
   function readInputs() {
     const i = defaultInputs();
 
-    i.saveName = ($("saveName").value || "1");
+    // JSON name is purely a convenience label (embedded in exported JSON + used for filename).
+    // Local Save/Load always uses a single slot.
+    i.jsonName = (($("jsonName")?.value ?? "").trim());
     i.mode = $("mode").value;
 
     i.agent.level = num("agentLevel", 60);
@@ -201,7 +207,12 @@
     i.enemy.level = num("enemyLevel", 70);
     i.enemy.def = num("enemyDef", 0);
 
-    i.enemy.resPct = num("enemyResAllPct", 0);
+    i.enemy.resAllPct = num("enemyResAllPct", 0);
+    i.enemy.resPhysicalPct = optNum("enemyResPhysicalPct");
+    i.enemy.resFirePct = optNum("enemyResFirePct");
+    i.enemy.resIcePct = optNum("enemyResIcePct");
+    i.enemy.resElectricPct = optNum("enemyResElectricPct");
+    i.enemy.resEtherPct = optNum("enemyResEtherPct");
 
     i.enemy.defReductionPct = num("defReductionPct", 0);
     i.enemy.defIgnorePct = num("defIgnorePct", 0);
@@ -237,22 +248,19 @@
   // Core formulas (preview output)
   // ===========================
   function getResPctForAttribute(enemy, attr) {
-    // Backward-compatible helper: if legacy per-attribute RES exists, prefer it.
-    const legacyMap = {
+    // If both an all-attribute RES and a specific attribute RES are provided,
+    // they should stack additively (e.g., All -16% + Ether -20% = -36%).
+    const map = {
       physical: enemy.resPhysicalPct,
       fire: enemy.resFirePct,
       ice: enemy.resIcePct,
       electric: enemy.resElectricPct,
       ether: enemy.resEtherPct,
     };
-    const legacySpecific = legacyMap[attr];
-    if (legacySpecific !== null && legacySpecific !== undefined) return legacySpecific;
-
-    // New single RES field
-    if (enemy.resPct !== null && enemy.resPct !== undefined) return enemy.resPct;
-
-    // Legacy single field
-    return enemy.resAllPct ?? 0;
+    const specific = map[attr];
+    const all = enemy.resAllPct ?? 0;
+    if (specific !== null && specific !== undefined && Number.isFinite(specific)) return all + specific;
+    return all;
   }
 
   function computeDefMult(i) {
@@ -558,6 +566,39 @@
     return { kind: "pct", value: DEFAULT_DELTA.pct };
   }
 
+
+  function getOriginalDisplayForKey(i, key) {
+    // Returns the current stat in the same units the user sees in inputs.
+    // kind: "flat" (raw number) or "pct" (percentage points)
+    switch (key) {
+      case "atkBase": return { kind: "flat", value: i.agent.atkBase };
+
+      case "dmgGenericPct": return { kind: "pct", value: i.agent.dmgBuckets.generic };
+      case "dmgAttrPct": return { kind: "pct", value: i.agent.dmgBuckets.attribute };
+      case "dmgSkillTypePct": return { kind: "pct", value: i.agent.dmgBuckets.skillType };
+
+      case "critRatePct": return { kind: "pct", value: i.agent.crit.rate * 100 };
+      case "critDmgPct": return { kind: "pct", value: i.agent.crit.dmg * 100 };
+
+      case "penRatioPct": return { kind: "pct", value: i.agent.penRatioPct };
+      case "penFlat": return { kind: "flat", value: i.agent.penFlat };
+
+      case "defReductionPct": return { kind: "pct", value: i.enemy.defReductionPct };
+      case "defIgnorePct": return { kind: "pct", value: i.enemy.defIgnorePct };
+
+      case "dmgTakenPct": return { kind: "pct", value: i.enemy.dmgTakenPct };
+      case "stunPct": return { kind: "pct", value: i.enemy.stunPct };
+
+      case "anomDmgPct": return { kind: "pct", value: i.agent.anomaly.dmgPct };
+      case "disorderDmgPct": return { kind: "pct", value: i.agent.anomaly.disorderPct };
+
+      case "sheerForce": return { kind: "flat", value: i.agent.rupture.sheerForce };
+      case "sheerDmgBonusPct": return { kind: "pct", value: i.agent.rupture.sheerDmgBonusPct };
+
+      default: return { kind: "pct", value: 0 };
+    }
+  }
+
   function applyDelta(i, key, overrideDelta = null) {
     const j = clone(i);
     const d = (overrideDelta && Number.isFinite(overrideDelta.value))
@@ -646,7 +687,12 @@
         deltaText = `+${fmt1(applied.value)}%`;
       }
 
-      rows.push({ ...m, applied, deltaText, out2, gain, pctGain });
+      const orig = getOriginalDisplayForKey(i, m.key);
+      const origVal = orig.value;
+      let totalVal = origVal + (applied?.value ?? 0);
+      if (m.key === "critRatePct") totalVal = clamp(totalVal, 0, 100);
+
+      rows.push({ ...m, applied, deltaText, out2, gain, pctGain, origVal, totalVal, displayKind: orig.kind });
     }
 
     rows.sort((a,b) => b.pctGain - a.pctGain);
@@ -656,20 +702,37 @@
   // ===========================
   // Save/Load/Export/Import
   // ===========================
-  function getAllSaves() {
+  // Local Save/Load is intentionally a single temporal slot.
+  // JSON export/import can carry a user-chosen name for better organisation.
+  const SAVE_KEY = "zzz_calc_save_v1";
+
+  function getSavedBuild() {
     try {
-      return JSON.parse(localStorage.getItem("zzz_calc_saves") || "{}");
-    } catch {
-      return {};
-    }
+      const raw = localStorage.getItem(SAVE_KEY);
+      if (raw) return JSON.parse(raw);
+    } catch {}
+
+    // Back-compat: old multi-slot saves (zzz_calc_saves)
+    try {
+      const legacy = JSON.parse(localStorage.getItem("zzz_calc_saves") || "{}");
+      if (legacy && typeof legacy === "object") {
+        if (legacy["1"]) return legacy["1"];
+        const firstKey = Object.keys(legacy)[0];
+        if (firstKey) return legacy[firstKey];
+      }
+    } catch {}
+
+    return null;
   }
-  function setAllSaves(saves) {
-    localStorage.setItem("zzz_calc_saves", JSON.stringify(saves));
+
+  function setSavedBuild(data) {
+    localStorage.setItem(SAVE_KEY, JSON.stringify(data));
   }
 
   function applyImportedData(data) {
     // minimal: write values back to UI (keeping ids stable)
-    $("saveName").value = data.saveName ?? "1";
+    const jsonNameEl = $("jsonName");
+    if (jsonNameEl) jsonNameEl.value = data.jsonName ?? "";
     $("mode").value = data.mode ?? "standard";
 
     $("agentLevel").value = data.agent?.level ?? 60;
@@ -709,24 +772,31 @@
     $("enemyLevel").value = data.enemy?.level ?? 70;
     $("enemyDef").value = data.enemy?.def ?? 0;
 
-    // Enemy RES (backward compatible):
-    // - New: enemy.resPct
-    // - Legacy: enemy.resAllPct
-    // - Legacy per-attribute RES: prefer the agent's attribute if present
-    const importedAttr = data.agent?.attribute ?? "physical";
-    const legacyResByAttr = {
-      physical: data.enemy?.resPhysicalPct,
-      fire: data.enemy?.resFirePct,
-      ice: data.enemy?.resIcePct,
-      electric: data.enemy?.resElectricPct,
-      ether: data.enemy?.resEtherPct,
-    };
-    const legacySpecific = legacyResByAttr[importedAttr];
-    const resVal =
-      (data.enemy?.resPct ?? null) ??
-      (legacySpecific ?? null) ??
-      (data.enemy?.resAllPct ?? 0);
-    $("enemyResAllPct").value = resVal;
+    // RES import: if the saved JSON has both an all-attribute RES and a specific RES,
+    // treat them as additive so it matches in-game stacking.
+    {
+      const attr = data.agent?.attribute ?? "physical";
+      const all = Number(data.enemy?.resAllPct ?? 0);
+      const specificMap = {
+        physical: data.enemy?.resPhysicalPct,
+        fire: data.enemy?.resFirePct,
+        ice: data.enemy?.resIcePct,
+        electric: data.enemy?.resElectricPct,
+        ether: data.enemy?.resEtherPct,
+      };
+      const specific = specificMap[attr];
+      const combined = (specific !== null && specific !== undefined && Number.isFinite(Number(specific)))
+        ? (all + Number(specific))
+        : all;
+      $("enemyResAllPct").value = combined;
+
+      // Per-attribute fields are optional (some UI versions removed them)
+      const p = $("enemyResPhysicalPct"); if (p) p.value = data.enemy?.resPhysicalPct ?? "";
+      const f = $("enemyResFirePct"); if (f) f.value = data.enemy?.resFirePct ?? "";
+      const ic = $("enemyResIcePct"); if (ic) ic.value = data.enemy?.resIcePct ?? "";
+      const el = $("enemyResElectricPct"); if (el) el.value = data.enemy?.resElectricPct ?? "";
+      const et = $("enemyResEtherPct"); if (et) et.value = data.enemy?.resEtherPct ?? "";
+    }
 
     $("defReductionPct").value = data.enemy?.defReductionPct ?? 0;
     $("defIgnorePct").value = data.enemy?.defIgnorePct ?? 0;
@@ -746,33 +816,38 @@
 
   function saveBuild() {
     const data = readInputs();
-    const name = (data.saveName || "").trim() || "My Build";
-    const saves = getAllSaves();
-    saves[name] = data;
-    setAllSaves(saves);
-    alert(`Saved "${name}".`);
+    setSavedBuild(data);
+    alert("Saved.");
   }
 
   function loadBuild() {
-    const name = ($("saveName").value || "").trim() || "My Build";
-    const saves = getAllSaves();
-    const data = saves[name];
-    if (!data) {
-      alert(`No save found named "${name}".`);
-      return;
-    }
+    const data = getSavedBuild();
+    if (!data) { alert("No saved build found."); return; }
     applyImportedData(data);
     refresh();
-    alert(`Loaded "${name}".`);
+    alert("Loaded.");
   }
 
   function exportJSON() {
     const data = readInputs();
+
+    // If the user didn't type a name, ask once at export time.
+    if (!data.jsonName) {
+      const suggested = "My Build";
+      const v = (prompt("Name this build (for the exported JSON file):", suggested) || "").trim();
+      if (v) data.jsonName = v;
+    }
+
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "zzz_build.json";
+    const safeName = (data.jsonName || "zzz_build")
+      .replace(/[^a-z0-9 _\-]+/gi, "")
+      .trim()
+      .replace(/\s+/g, "_")
+      .slice(0, 60);
+    a.download = `${safeName || "zzz_build"}.json`;
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -856,52 +931,28 @@
 
     const { rows } = computeMarginals(i);
 
-    const getBaseStatDisplay = (inputs, key) => {
-      switch (key) {
-        case "atkBase": return { value: inputs.agent.atkBase, kind: "flat" };
-
-        case "dmgGenericPct": return { value: inputs.agent.dmgBuckets.generic, kind: "pct" };
-        case "dmgAttrPct": return { value: inputs.agent.dmgBuckets.attribute, kind: "pct" };
-        case "dmgSkillTypePct": return { value: inputs.agent.dmgBuckets.skillType, kind: "pct" };
-
-        case "critRatePct": return { value: inputs.agent.crit.rate * 100, kind: "pct" };
-        case "critDmgPct": return { value: inputs.agent.crit.dmg * 100, kind: "pct" };
-
-        case "penRatioPct": return { value: inputs.agent.penRatioPct, kind: "pct" };
-        case "penFlat": return { value: inputs.agent.penFlat, kind: "flat" };
-
-        case "defReductionPct": return { value: inputs.enemy.defReductionPct, kind: "pct" };
-        case "defIgnorePct": return { value: inputs.enemy.defIgnorePct, kind: "pct" };
-
-        case "dmgTakenPct": return { value: inputs.enemy.dmgTakenPct, kind: "pct" };
-        case "stunPct": return { value: inputs.enemy.stunPct, kind: "pct" };
-
-        case "anomDmgPct": return { value: inputs.agent.anomaly.dmgPct, kind: "pct" };
-        case "disorderDmgPct": return { value: inputs.agent.anomaly.disorderPct, kind: "pct" };
-
-        case "sheerForce": return { value: inputs.agent.rupture.sheerForce, kind: "flat" };
-        case "sheerDmgBonusPct": return { value: inputs.agent.rupture.sheerDmgBonusPct, kind: "pct" };
-      }
-      return { value: 0, kind: "pct" };
-    };
-
     $("marginalBody").innerHTML = rows.map(r => {
       const kind = r.applied?.kind ?? "pct";
       const val = r.applied?.value ?? 0;
-      
-      const unit = (kind === "pct") ? "%" : "";
 
+      const unit = (r.displayKind === "pct") ? "%" : "";
       const step = (kind === "flat") ? 1 : 0.1;
 
-      const baseStat = getBaseStatDisplay(i, r.key);
-      const baseText = (baseStat.kind === "flat") ? fmt0(baseStat.value) : fmt1(baseStat.value);
+      const fmtStat = (x) => (r.displayKind === "flat") ? fmt0(x) : fmt1(x);
+      const origText = fmtStat(r.origVal);
+      const totalText = fmtStat(r.totalVal);
 
       return `
       <tr>
         <td>${r.label}</td>
         <td>
           <div style="display:flex; gap:8px; align-items:center;">
-            <span class="muted" title="Current value" style="min-width:64px; text-align:right;">${baseText}</span>
+            <span class="muted">${origText}</span>
+            <span class="muted">${unit}</span>
+          </div>
+        </td>
+        <td>
+          <div style="display:flex; gap:8px; align-items:center;">
             <input
               class="appliedDelta"
               data-key="${r.key}"
@@ -911,6 +962,12 @@
               value="${String(val)}"
               style="width:110px; padding:6px 8px; border-radius:10px;"
             />
+            <span class="muted">${(kind === "pct") ? "%" : ""}</span>
+          </div>
+        </td>
+        <td>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <span class="muted">${totalText}</span>
             <span class="muted">${unit}</span>
           </div>
         </td>

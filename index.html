@@ -12,7 +12,6 @@
 
   <div class="card" style="margin-top:15px;">
     <div class="row">
-      <label>Save <input id="saveName" value="1"/></label>
       <label>
         Mode
         <select id="mode">
@@ -22,6 +21,7 @@
           <option value="hybrid">Hybrid (Standard + Anomaly)</option>
         </select>
       </label>
+      <label>Build Name (for JSON) <input id="jsonName" placeholder="e.g., Yixuan M1W1"/></label>
     </div>
 
     <div class="row" style="margin-top:10px;">
@@ -184,7 +184,9 @@
       <thead>
         <tr>
           <th>Stat</th>
-          <th>Δ Stat</th>
+          <th>Original</th>
+          <th>Applied</th>
+          <th>Total</th>
           <th>New Output</th>
           <th>DMG Gain</th>
           <th>DMG Gain (%)</th>
