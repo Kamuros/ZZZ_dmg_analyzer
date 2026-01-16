@@ -35,6 +35,42 @@
   const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
   const fmt0 = (x) => Number.isFinite(x) ? x.toFixed(0) : "—";
   const fmt1 = (x) => Number.isFinite(x) ? x.toFixed(1) : "—";
+  // Show decimals only when the value is actually fractional.
+  // Examples: 1     -> "1"
+  //           1.0   -> "1"
+  //           1.1   -> "1.1"
+  //           123.45-> "123.5"
+  const fmtSmart = (x) => {
+    if (!Number.isFinite(x)) return "—";
+    const r = Math.round(x);
+    if (Math.abs(x - r) < 1e-9) return String(r);
+    return x.toFixed(1);
+  };
+
+  // Sanitize custom applied deltas to a plain JSON object
+  function cloneCustomApplied() {
+    const out = {};
+    for (const [k, v] of Object.entries(CUSTOM_APPLIED)) {
+      if (!v || (v.kind !== "pct" && v.kind !== "flat")) continue;
+      const n = Number(v.value);
+      if (!Number.isFinite(n)) continue;
+      out[k] = { kind: v.kind, value: n };
+    }
+    return out;
+  }
+
+  function applyCustomAppliedFromData(data) {
+    // Clear current overrides
+    for (const k of Object.keys(CUSTOM_APPLIED)) delete CUSTOM_APPLIED[k];
+    const src = data?.marginal?.customApplied;
+    if (!src || typeof src !== "object") return;
+    for (const [k, v] of Object.entries(src)) {
+      if (!v || (v.kind !== "pct" && v.kind !== "flat")) continue;
+      const n = Number(v.value);
+      if (!Number.isFinite(n)) continue;
+      CUSTOM_APPLIED[k] = { kind: v.kind, value: n };
+    }
+  }
   const clone = (x) => JSON.parse(JSON.stringify(x));
 
   const pctToMult = (pct) => 1 + (pct / 100);
@@ -229,6 +265,8 @@
     i.marginal.deltaPreset = deltaPresetEl ? deltaPresetEl.value : "1";
     i.marginal.basis = basisEl ? basisEl.value : "raw";
     i.marginal.topN = topNEl ? topNEl.value : "all";
+    // Persist per-row "Applied" deltas (editable marginal table inputs)
+    i.marginal.customApplied = cloneCustomApplied();
 
     return i;
   }
@@ -730,6 +768,9 @@
   }
 
   function applyImportedData(data) {
+    // Restore per-row marginal "Applied" deltas (if present)
+    applyCustomAppliedFromData(data);
+
     // minimal: write values back to UI (keeping ids stable)
     const jsonNameEl = $("jsonName");
     if (jsonNameEl) jsonNameEl.value = data.jsonName ?? "";
@@ -772,25 +813,12 @@
     $("enemyLevel").value = data.enemy?.level ?? 70;
     $("enemyDef").value = data.enemy?.def ?? 0;
 
-    // RES import: if the saved JSON has both an all-attribute RES and a specific RES,
-    // treat them as additive so it matches in-game stacking.
+    // RES import: keep All-Attribute RES and per-attribute RES as separate fields.
+    // Effective RES used in damage calc is: All + Specific (if provided for the agent's attribute).
+    // This matches in-game behavior (e.g., All -16% + Ether -20% = -36%).
     {
-      const attr = data.agent?.attribute ?? "physical";
-      const all = Number(data.enemy?.resAllPct ?? 0);
-      const specificMap = {
-        physical: data.enemy?.resPhysicalPct,
-        fire: data.enemy?.resFirePct,
-        ice: data.enemy?.resIcePct,
-        electric: data.enemy?.resElectricPct,
-        ether: data.enemy?.resEtherPct,
-      };
-      const specific = specificMap[attr];
-      const combined = (specific !== null && specific !== undefined && Number.isFinite(Number(specific)))
-        ? (all + Number(specific))
-        : all;
-      $("enemyResAllPct").value = combined;
+      $("enemyResAllPct").value = data.enemy?.resAllPct ?? 0;
 
-      // Per-attribute fields are optional (some UI versions removed them)
       const p = $("enemyResPhysicalPct"); if (p) p.value = data.enemy?.resPhysicalPct ?? "";
       const f = $("enemyResFirePct"); if (f) f.value = data.enemy?.resFirePct ?? "";
       const ic = $("enemyResIcePct"); if (ic) ic.value = data.enemy?.resIcePct ?? "";
@@ -938,7 +966,7 @@
       const unit = (r.displayKind === "pct") ? "%" : "";
       const step = (kind === "flat") ? 1 : 0.1;
 
-      const fmtStat = (x) => (r.displayKind === "flat") ? fmt0(x) : fmt1(x);
+      const fmtStat = (x) => fmtSmart(x);
       const origText = fmtStat(r.origVal);
       const totalText = fmtStat(r.totalVal);
 
@@ -971,9 +999,9 @@
             <span class="muted">${unit}</span>
           </div>
         </td>
-        <td>${fmt0(r.out2)}</td>
-        <td>${fmt0(r.gain)}</td>
-        <td>${fmt1(r.pctGain)}%</td>
+        <td>${fmtSmart(r.out2)}</td>
+        <td>${fmtSmart(r.gain)}</td>
+        <td>${fmtSmart(r.pctGain)}%</td>
       </tr>
     `;
     }).join("");
