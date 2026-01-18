@@ -224,6 +224,11 @@
     i.agent.dmgBuckets.attribute = num("dmgAttrPct", 0);
     i.agent.dmgBuckets.skillType = num("dmgSkillTypePct", 0);
 
+    // Advanced (rare) damage knobs
+    i.agent.dmgBuckets.other = num("dmgOtherPct", 0);
+    i.agent.dmgBuckets.vsStunned = num("dmgVsStunnedPct", 0);
+
+
     i.agent.penRatioPct = num("penRatioPct", 0);
     i.agent.penFlat = num("penFlat", 0);
 
@@ -261,6 +266,8 @@
     i.enemy.defIgnorePct = num("defIgnorePct", 0);
 
     i.enemy.dmgTakenPct = num("dmgTakenPct", 0);
+    i.enemy.dmgTakenStunnedPct = num("dmgTakenStunnedPct", 0);
+
     i.enemy.isStunned = ($("isStunned").value === "true");
     i.enemy.stunPct = num("stunPct", 150);
 
@@ -331,6 +338,13 @@
     return mult;
   }
 
+
+  function computeVulnMult(i) {
+    const base = Number(i.enemy.dmgTakenPct || 0);
+    const stunnedBonus = (i.enemy.isStunned ? Number(i.enemy.dmgTakenStunnedPct || 0) : 0);
+    return pctToMult(base + stunnedBonus);
+  }
+
   function computeResMult(i) {
     const resPct = getResPctForAttribute(i.enemy, i.agent.attribute);
     // Simple model: multiplier = 1 - RES (can go above 1 if negative)
@@ -353,7 +367,7 @@
     const defMult = computeDefMult(i);
     const resMult = computeResMult(i);
 
-    const vuln = pctToMult(i.enemy.dmgTakenPct);
+    const vuln = computeVulnMult(i);
     const stunMult = i.enemy.isStunned ? (i.enemy.stunPct / 100) : 1;
 
     const base = atk * skill * dmgMult * defMult * resMult * vuln * stunMult;
@@ -442,7 +456,7 @@
 
     const defMult = computeDefMult(i);
     const resMult = computeResMult(i);
-    const vuln = pctToMult(i.enemy.dmgTakenPct);
+    const vuln = computeVulnMult(i);
     const stunMult = i.enemy.isStunned ? (i.enemy.stunPct / 100) : 1;
 
     // Base multiplier for each anomaly instance
@@ -547,7 +561,7 @@
     const dmgMult = pctToMult(dmgPctTotal);
     const sheerMult = pctToMult(i.agent.rupture.sheerDmgBonusPct);
     const resMult = computeResMult(i);
-    const vuln = pctToMult(i.enemy.dmgTakenPct);
+    const vuln = computeVulnMult(i);
     const stunMult = i.enemy.isStunned ? (i.enemy.stunPct / 100) : 1;
 
     // No DEF multiplier for rupture: treated as 1 because Sheer DMG ignores enemy DEF.
@@ -800,6 +814,10 @@
     $("dmgAttrPct").value = data.agent?.dmgBuckets?.attribute ?? 0;
     $("dmgSkillTypePct").value = data.agent?.dmgBuckets?.skillType ?? 0;
 
+    const otherEl = $("dmgOtherPct"); if (otherEl) otherEl.value = data.agent?.dmgBuckets?.other ?? 0;
+    const vsStunEl = $("dmgVsStunnedPct"); if (vsStunEl) vsStunEl.value = data.agent?.dmgBuckets?.vsStunned ?? 0;
+
+
     $("penRatioPct").value = data.agent?.penRatioPct ?? 0;
     $("penFlat").value = data.agent?.penFlat ?? 0;
 
@@ -848,6 +866,8 @@
     $("defIgnorePct").value = data.enemy?.defIgnorePct ?? 0;
 
     $("dmgTakenPct").value = data.enemy?.dmgTakenPct ?? 0;
+    const dts = $("dmgTakenStunnedPct"); if (dts) dts.value = data.enemy?.dmgTakenStunnedPct ?? 0;
+
     $("isStunned").value = String(data.enemy?.isStunned ?? false);
     $("stunPct").value = data.enemy?.stunPct ?? 150;
 
