@@ -8,9 +8,9 @@
 </head>
 
 <body>
-  <h1>Zenless Zone Zero — Damage Inputs + “Diminishing Returns” Analyzer</h1>
+  <h1>Zenless Zone Zero: Damage Inputs + “Diminishing Returns” Analyzer</h1>
 
-  <div class="card" style="margin-top:15px;">
+  <div class="card mt-15">
     <div class="row">
       <label>
         Mode
@@ -21,10 +21,10 @@
           <option value="hybrid">Hybrid (Standard + Anomaly)</option>
         </select>
       </label>
-      <label>Build Name (for JSON) <input id="jsonName" placeholder="e.g., Yixuan M1W1"/></label>
+      <label>Save Name (for JSON) <input id="jsonName"/></label>
     </div>
 
-    <div class="row" style="margin-top:10px;">
+    <div class="row mt-10">
       <button class="btn primary" id="btnSave">Save</button>
       <button class="btn" id="btnLoad">Load</button>
       <button class="btn" id="btnExport">Export JSON</button>
@@ -49,7 +49,7 @@
             <option value="ether">Ether</option>
           </select>
         </label>
-        <label>Total ATK <input id="atkBase" type="number" value="1000" min="0" step="1"/></label>
+        <label>Total ATK <input id="atkBase" type="number" value="2000" min="1" step="1"/></label>
       </div>
 
       <div class="form-row cols-2">

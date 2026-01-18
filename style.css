@@ -137,3 +137,6 @@ details[open].card > summary.summary::after {
     grid-template-columns: 1fr;
   }
 }
+
+.mt-10 { margin-top: 10px; }
+.mt-15 { margin-top: 15px; }
