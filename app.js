@@ -117,6 +117,11 @@
           // but some character-specific effects may effectively make anomaly instances crit-like.
           allowCrit: false,
 
+          // Optional anomaly-specific crit overrides (used only when allowCrit is true).
+          // Leave blank in the UI to reuse the agent's crit stats.
+          critRatePctOverride: null,
+          critDmgPctOverride: null,
+
           // Disorder modeling inputs
           disorderPrevType: "auto",
           disorderTimePassedSec: 0,
@@ -230,6 +235,8 @@
     i.agent.anomaly.dmgPct = num("anomDmgPct", 0);
     i.agent.anomaly.disorderPct = num("disorderDmgPct", 0);
     i.agent.anomaly.allowCrit = !!$("anomAllowCrit")?.checked;
+    i.agent.anomaly.critRatePctOverride = optNum("anomCritRatePct");
+    i.agent.anomaly.critDmgPctOverride = optNum("anomCritDmgPct");
     i.agent.anomaly.tickCountOverride = optNum("anomTickCount");
     i.agent.anomaly.tickIntervalSecOverride = optNum("anomTickIntervalSec");
     i.agent.anomaly.disorderPrevType = $("disorderPrevType")?.value ?? "auto";
@@ -443,14 +450,20 @@
 
     // Base damage (non-crit)
     const perInstNonCrit = perInstBase * profMult * lvMult * anomalyBonusMult * defMult * resMult * vuln * stunMult;
-    const perInstCrit = perInstNonCrit * (1 + i.agent.crit.dmg);
+    // Crit overrides (special cases only)
+    const crPct = (i.agent.anomaly.critRatePctOverride ?? null);
+    const cdPct = (i.agent.anomaly.critDmgPctOverride ?? null);
+    const critRate = (crPct === null) ? i.agent.crit.rate : clamp(crPct / 100, 0, 1);
+    const critDmg = (cdPct === null) ? i.agent.crit.dmg : Math.max(0, cdPct / 100);
+
+    const perInstCrit = perInstNonCrit * (1 + critDmg);
 
     const canCritByDefault = !!meta.canCrit;
     const allowCrit = !!i.agent.anomaly.allowCrit;
     // By default anomalies cannot crit. If the user enables the special-case toggle,
     // we allow crit math to apply (useful for character-specific exceptions).
     const critEnabled = allowCrit;
-    const cr = clamp(i.agent.crit.rate, 0, 1);
+    const cr = clamp(critRate, 0, 1);
     const perInstAvg = critEnabled ? (perInstNonCrit * (1 - cr) + perInstCrit * cr) : perInstNonCrit;
 
     const anomalyPerTick = {
@@ -489,7 +502,7 @@
     }
 
     const disorderNonCrit = atk * (disorderMultPct / 100) * profMult * lvMult * disorderBonusMult * defMult * resMult * vuln * stunMult;
-    const disorderCrit = disorderNonCrit * (1 + i.agent.crit.dmg);
+    const disorderCrit = disorderNonCrit * (1 + critDmg);
     const disorderAvg = critEnabled ? (disorderNonCrit * (1 - cr) + disorderCrit * cr) : disorderNonCrit;
 
     return {
@@ -798,6 +811,11 @@
     $("disorderDmgPct").value = data.agent?.anomaly?.disorderPct ?? 0;
     const allowCritEl = $("anomAllowCrit");
     if (allowCritEl) allowCritEl.checked = !!(data.agent?.anomaly?.allowCrit ?? false);
+
+    const anomCrEl = $("anomCritRatePct");
+    if (anomCrEl) anomCrEl.value = data.agent?.anomaly?.critRatePctOverride ?? "";
+    const anomCdEl = $("anomCritDmgPct");
+    if (anomCdEl) anomCdEl.value = data.agent?.anomaly?.critDmgPctOverride ?? "";
     const tickCountEl = $("anomTickCount");
     if (tickCountEl) tickCountEl.value = data.agent?.anomaly?.tickCountOverride ?? "";
     const tickIntEl = $("anomTickIntervalSec");
@@ -999,8 +1017,8 @@
             <span class="muted">${unit}</span>
           </div>
         </td>
-        <td>${fmtSmart(r.out2)}</td>
-        <td>${fmtSmart(r.gain)}</td>
+        <td>${fmt0(r.out2)}</td>
+        <td>${fmt0(r.gain)}</td>
         <td>${fmtSmart(r.pctGain)}%</td>
       </tr>
     `;

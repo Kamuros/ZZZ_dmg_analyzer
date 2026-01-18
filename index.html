@@ -90,13 +90,9 @@
         <label>Anomaly Proficiency <input id="anomProf" type="number" value="0" step="1"/></label>
       </div>
 
-      <div class="form-row cols-3">
+      <div class="form-row cols-2">
         <label>Anomaly DMG (%) <input id="anomDmgPct" type="number" value="0" step="0.1"/></label>
         <label>Disorder DMG (%) <input id="disorderDmgPct" type="number" value="0" step="0.1"/></label>
-        <label style="display:flex; align-items:center; gap:10px;">
-          <span>Allow anomaly crit (special cases)</span>
-          <input id="anomAllowCrit" type="checkbox" />
-        </label>
       </div>
 
       <div class="form-row cols-3">
@@ -144,6 +140,28 @@
       </div>
     </div>
   </div>
+
+  <details class="card" id="advancedTab" style="margin-top:20px;">
+    <summary class="summary">Advanced</summary>
+    <div class="form" style="margin-top:12.5px;">
+      <div class="form-row cols-3">
+        <label style="display:flex; align-items:center; gap:10px;">
+          <span>Allow anomaly crit (special cases)</span>
+          <input id="anomAllowCrit" type="checkbox" />
+        </label>
+        <label>Anomaly Crit Rate (%)
+          <input id="anomCritRatePct" type="number" value="" min="0" max="100" step="0.1" placeholder="Blank = use Agent Crit Rate"/>
+        </label>
+        <label>Anomaly Crit DMG (%)
+          <input id="anomCritDmgPct" type="number" value="" min="0" step="0.1" placeholder="Blank = use Agent Crit DMG"/>
+        </label>
+      </div>
+
+      <div class="muted">
+        Used only when <b>Allow anomaly crit</b> is enabled. Leave the anomaly crit fields blank to reuse the agent crit stats.
+      </div>
+    </div>
+  </details>
 
   <h2>Enemy</h2>
   <div class="card">
