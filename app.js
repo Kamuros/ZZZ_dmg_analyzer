@@ -336,27 +336,26 @@ const LEVEL_FACTOR_TABLE = {
   }
 
   function computeDefMult(i) {
-    const aLv = Math.max(1, i.agent.level);
+  const aLv = Math.max(1, i.agent.level);
 
-    let def = Math.max(0, i.enemy.def);
+  let def = Math.max(0, i.enemy.def);
 
-    // Shred + ignore as additive percent of enemy DEF (applied before PEN flat)
-    const defPctDown = clamp((i.enemy.defReductionPct + i.enemy.defIgnorePct) / 100, 0, 0.95);
-    def = def * (1 - defPctDown);
+  // Shred + ignore as additive percent of enemy DEF (applied before PEN)
+  const defPctDown = clamp((i.enemy.defReductionPct + i.enemy.defIgnorePct) / 100, 0, 0.95);
+  def = def * (1 - defPctDown);
 
-    // Flat PEN reduces remaining DEF (clamped)
-    const pen = Math.max(0, i.agent.penFlat);
-    def = Math.max(0, def - pen);
+  // Apply PEN Ratio first (scales remaining DEF)
+  const ratio = clamp(i.agent.penRatioPct / 100, 0, 0.95);
+  def = def * (1 - ratio);
 
-    const ratio = clamp(i.agent.penRatioPct / 100, 0, 0.95);
-    def = def * (1 - ratio);
+  // Then subtract Flat PEN last
+  const pen = Math.max(0, i.agent.penFlat);
+  def = Math.max(0, def - pen);
 
-    // ZZZ baseline: use Level Factor table instead of (level + 100) approximation
-    const k = levelFactor(aLv);
-    const mult = k / (k + def);
-    return mult;
-  }
-
+  // ZZZ baseline: use Level Factor table
+  const k = levelFactor(aLv);
+  return k / (k + def);
+}
 
   function computeVulnMult(i) {
     const base = Number(i.enemy.dmgTakenPct || 0);
