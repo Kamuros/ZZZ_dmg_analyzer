@@ -18,7 +18,6 @@
           <option value="standard">Standard</option>
           <option value="anomaly">Anomaly</option>
           <option value="rupture">Rupture</option>
-          <option value="hybrid">Hybrid (Standard + Anomaly)</option>
         </select>
       </label>
       <label>Save Name (for JSON) <input id="jsonName"/></label>
@@ -103,14 +102,7 @@
         <label>Tick Interval (sec, override)
           <input id="anomTickIntervalSec" type="number" value="" min="0" step="0.05" placeholder="Auto"/>
         </label>
-        <label>
-          Anomaly Info
-          <div class="muted" style="margin-top:6px;">
-            <span class="pill" id="anomKindPill">—</span>
-            <span class="pill" id="anomCanCritPill">—</span>
-          </div>
-        </label>
-      </div>
+</div>
 
       <div class="form-row cols-3">
         <label>

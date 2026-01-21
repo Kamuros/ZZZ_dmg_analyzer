@@ -425,11 +425,11 @@ const LEVEL_FACTOR_TABLE = {
   };
 
   const ANOM_TYPE_FROM_ATTR = {
-    physical: "Assault",
-    fire: "Burn",
-    electric: "Shock",
-    ice: "Shatter",
-    ether: "Corruption",
+    physical: "assault",
+    fire: "aurn",
+    electric: "shock",
+    ice: "shatter",
+    ether: "corruption",
   };
 
   function inferAnomType(i) {
@@ -614,16 +614,20 @@ const LEVEL_FACTOR_TABLE = {
       };
     }
 
-    if (i.mode === "anomaly") {
+    if (i.mode === "anomaly" || i.mode === "hybrid") {
+      // "Anomaly" mode is the former Hybrid (Standard + Anomaly) view.
+      // Keep "hybrid" for backward compatibility with old JSON saves.
       return {
-        mode: i.mode,
+        mode: "anomaly",
         anom,
-        output_expected: anom.combinedAvg,
-        output: anom.combinedAvg,
+        output_noncrit: std.nonCrit,
+        output_crit: std.crit,
+        output_expected: std.expected + anom.combinedAvg,
+        output: std.expected + anom.combinedAvg,
       };
     }
 
-    if (i.mode === "rupture") {
+if (i.mode === "rupture") {
       return {
         mode: i.mode,
         rupture: rup.expected,
@@ -634,16 +638,16 @@ const LEVEL_FACTOR_TABLE = {
       };
     }
 
-    // hybrid
+    // fallback (shouldn't happen)
     return {
       mode: i.mode,
       output_noncrit: std.nonCrit,
       output_crit: std.crit,
-      // Hybrid is still a simplistic "add standard hit + anomaly proc" view.
-      output_expected: std.expected + anom.combinedAvg,
-      output: std.expected + anom.combinedAvg,
+      output_expected: std.expected,
+      output: std.expected,
     };
   }
+
 
   // ===========================
   // Marginal analysis
@@ -825,7 +829,7 @@ const LEVEL_FACTOR_TABLE = {
     // minimal: write values back to UI (keeping ids stable)
     const jsonNameEl = $("jsonName");
     if (jsonNameEl) jsonNameEl.value = data.jsonName ?? "";
-    $("mode").value = data.mode ?? "standard";
+    $("mode").value = ((data.mode === "hybrid") ? "anomaly" : (data.mode ?? "standard"));
 
     $("agentLevel").value = data.agent?.level ?? 60;
     $("attribute").value = data.agent?.attribute ?? "physical";
@@ -975,10 +979,10 @@ const LEVEL_FACTOR_TABLE = {
     const out = computePreviewOutput(i);
     const anomOut = (i.mode === "anomaly" || i.mode === "hybrid") ? computeAnomalyOutput(i) : null;
 
-    const mode = i.mode;
+    const mode = (i.mode === "hybrid") ? "anomaly" : i.mode;
     const labelPrefix =
       (mode === "standard") ? "Output" :
-      (mode === "anomaly")  ? "Anomaly Output" :
+      (mode === "anomaly")  ? "Output" :
       (mode === "rupture")  ? "Rupture Output" :
       "Combined Output";
 
@@ -986,39 +990,26 @@ const LEVEL_FACTOR_TABLE = {
       { t:`Expected DMG`,    v: fmt0(out.output_expected) },
     ];
 
-    if (mode === "standard" || mode === "hybrid" || mode === "rupture") {
+    if (mode === "standard" || mode === "anomaly" || mode === "rupture") {
       kpiItems.push({ t:`DMG (Non-Crit)`, v: fmt0(out.output_noncrit) });
       kpiItems.push({ t:`DMG (Crit)`,     v: fmt0(out.output_crit) });
     }
+if (anomOut) {
+      kpiItems.push({ t: `Anomaly Type`, v: anomOut.anomType });
 
-    if (mode === "anomaly" || mode === "hybrid") {
-      // Update anomaly info pills (if present in DOM)
-      const kindPill = $("anomKindPill");
-      const canCritPill = $("anomCanCritPill");
-      if (kindPill && anomOut) kindPill.textContent = (anomOut.kind === "dot") ? "DoT" : "Single";
-      if (canCritPill && anomOut) {
-        if (anomOut.critEnabled) canCritPill.textContent = "Crit: ON";
-        else canCritPill.textContent = anomOut.canCritByDefault ? "Crit: YES" : "Crit: NO";
+      if (anomOut.kind === "dot") {
+        kpiItems.push({ t: `Tick DMG (AVG)`, v: fmt0(anomOut.anomalyPerTick.avg) });
+        kpiItems.push({ t: `Ticks / Proc`, v: fmt0(anomOut.tickCount) });
+        kpiItems.push({ t: `Tick Interval (s)`, v: fmt1(anomOut.tickIntervalSec) });
+        kpiItems.push({ t: `DoT Duration (s)`, v: fmt1(anomOut.durationSec) });
+        kpiItems.push({ t: `Anomaly Total / Proc`, v: fmt0(anomOut.anomalyPerProc.avg) });
+      } else {
+        kpiItems.push({ t: `Anomaly Hit (AVG)`, v: fmt0(anomOut.anomalyPerProc.avg) });
       }
 
-      if (anomOut) {
-        kpiItems.push({ t: `Anomaly Type`, v: anomOut.anomType });
-
-        if (anomOut.kind === "dot") {
-          kpiItems.push({ t: `Tick DMG (AVG)`, v: fmt0(anomOut.anomalyPerTick.avg) });
-          kpiItems.push({ t: `Ticks / Proc`, v: fmt0(anomOut.tickCount) });
-          kpiItems.push({ t: `Tick Interval (s)`, v: fmt1(anomOut.tickIntervalSec) });
-          kpiItems.push({ t: `DoT Duration (s)`, v: fmt1(anomOut.durationSec) });
-          kpiItems.push({ t: `Anomaly Total / Proc`, v: fmt0(anomOut.anomalyPerProc.avg) });
-        } else {
-          kpiItems.push({ t: `Anomaly Hit (AVG)`, v: fmt0(anomOut.anomalyPerProc.avg) });
-        }
-
-        kpiItems.push({ t: `Disorder Hit (AVG)`, v: fmt0(anomOut.disorder.avg) });
-      }
+      kpiItems.push({ t: `Disorder Hit (AVG)`, v: fmt0(anomOut.disorder.avg) });
     }
-
-    $("kpi").innerHTML = kpiItems
+$("kpi").innerHTML = kpiItems
       .map(x => `<div class="box"><div class="t">${x.t}</div><div class="v">${x.v}</div></div>`)
       .join("");
 
