@@ -1067,7 +1067,7 @@
       const attribute = this.dom.select("attribute");
       if (attribute) attribute.value = String(agent?.attribute ?? "physical");
 
-      // ATK (new id) with legacy fallback
+      // ATK
       const atkEl = this.dom.input("atk");
       const atkValue = (agent?.atk ?? 0);
       if (atkEl) atkEl.value = String(atkValue);
@@ -1287,7 +1287,6 @@
     _exportData() {
       const i = this.parser.read();
 
-      // Clean, single-schema export (no legacy/back-compat fields)
       return {
         jsonName: i.jsonName,
         mode: i.mode,

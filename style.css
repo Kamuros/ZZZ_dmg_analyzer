@@ -24,92 +24,21 @@ h2 { margin: 20px 0 10px; font-size: 20px; }
 .card {
   border: 1px solid var(--b);
   border-radius: 15px;
-  padding: 15px 15px;
+  padding: 15px;
   background: #fff;
 }
 
-.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12.5px 15px; }
-.grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12.5px 15px; }
+/* ============================
+   Layout primitives
+   ============================ */
 
-.row { display:flex; gap:10px; flex-wrap: wrap; align-items: end; }
+.row {
+  display:flex;
+  gap:10px;
+  flex-wrap: wrap;
+  align-items: end;
+}
 .row > * { flex: 1; min-width: 220px; }
-
-label {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  font-size: 14px;
-}
-
-label > input, label > select { align-self: stretch; }
-
-input, select {
-  padding: 10px 10px;
-  border: 1px solid #cfcfcf;
-  border-radius: 12.5px;
-  font-size: 14px;
-}
-
-input[type="checkbox"] { width: 20px; height: 20px; }
-
-.btn {
-  padding: 10px 12.5px;
-  border-radius: 12.5px;
-  border: 1px solid #cfcfcf;
-  background: #f7f7f7;
-  cursor: pointer;
-  font-size: 14px;
-}
-
-.btn.primary { background: #eef5ff; border-color: #b9d3ff; }
-.btn:active { transform: translateY(1px); }
-
-pre {
-  background:#fafafa;
-  border:1px solid #eee;
-  padding:12.5px;
-  border-radius:15px;
-  overflow:auto;
-  margin: 0;
-}
-
-table { width: 100%; border-collapse: collapse; }
-th, td { text-align: left; padding: 10px 7.5px; border-bottom: 1px solid #eee; font-size: 14px; }
-th { font-size: 12px; color: var(--muted); font-weight: 650; letter-spacing: 0.25px; text-transform: uppercase; }
-
-.kpi { display:flex; gap:10px; flex-wrap: wrap; }
-.kpi .box { border:1px solid #eee; border-radius: 12.5px; padding:10px 12.5px; background:#fcfcfc; min-width: 240px; }
-.kpi .box .t { font-size: 12px; color: var(--muted); margin-bottom: 5px; }
-.kpi .box .v { font-size: 16px; font-weight: 650; }
-
-.hr { height:1px; background:#eee; margin: 15px 0; }
-.hidden { display:none !important; }
-
-/* ============================
-   Collapsible "Advanced" panel
-   ============================ */
-
-details.card > summary.summary {
-  cursor: pointer;
-  font-weight: 650;
-  list-style: none;
-}
-
-details.card > summary.summary::-webkit-details-marker { display: none; }
-
-details.card > summary.summary::after {
-  content: "▸";
-  float: right;
-  opacity: 0.65;
-}
-
-details[open].card > summary.summary::after {
-  content: "▾";
-}
-
-/* ============================
-   New: configurable form rows
-   ============================ */
 
 .form {
   display: flex;
@@ -138,20 +67,145 @@ details[open].card > summary.summary::after {
   }
 }
 
-.mt-10 { margin-top: 10px; }
-.mt-15 { margin-top: 15px; }
+/* ============================
+   Form controls
+   ============================ */
 
-/* Utility helpers (keep HTML free of inline styles) */
-.align-end { align-self: end; }
-.mt-20 { margin-top: 20px; }
-.mt-12_5 { margin-top: 12.5px; }
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 14px;
+}
+
+label > input,
+label > select {
+  align-self: stretch;
+}
+
+input,
+select {
+  padding: 10px;
+  border: 1px solid #cfcfcf;
+  border-radius: 12.5px;
+  font-size: 14px;
+}
+
+input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+}
 
 .label-inline {
   flex-direction: row;
   align-items: center;
   gap: 10px;
 }
-
 .label-inline > span { flex: 1; }
 
+/* ============================
+   Buttons
+   ============================ */
+
+.btn {
+  padding: 10px 12.5px;
+  border-radius: 12.5px;
+  border: 1px solid #cfcfcf;
+  background: #f7f7f7;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.btn.primary { background: #eef5ff; border-color: #b9d3ff; }
+.btn:active { transform: translateY(1px); }
+
+/* ============================
+   Tables & blocks
+   ============================ */
+
+pre {
+  background:#fafafa;
+  border:1px solid #eee;
+  padding:12.5px;
+  border-radius:15px;
+  overflow:auto;
+  margin: 0;
+}
+
+table { width: 100%; border-collapse: collapse; }
+th, td {
+  text-align: left;
+  padding: 10px 7.5px;
+  border-bottom: 1px solid #eee;
+  font-size: 14px;
+}
+th {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 650;
+  letter-spacing: 0.25px;
+  text-transform: uppercase;
+}
+
+.kpi {
+  display:flex;
+  gap:10px;
+  flex-wrap: wrap;
+}
+.kpi .box {
+  border:1px solid #eee;
+  border-radius: 12.5px;
+  padding:10px 12.5px;
+  background:#fcfcfc;
+  min-width: 240px;
+}
+.kpi .box .t {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 5px;
+}
+.kpi .box .v {
+  font-size: 16px;
+  font-weight: 650;
+}
+
+/* ============================
+   Utilities
+   ============================ */
+
+.hidden { display:none !important; }
+.align-end { align-self: end; }
+
+.hr { height:1px; background:#eee; margin: 15px 0; }
 .hr.tight { margin: 12.5px 0; }
+
+/* Spacing utilities (consistent scale) */
+.mt-5    { margin-top: 5px; }
+.mt-10   { margin-top: 10px; }
+.mt-12_5 { margin-top: 12.5px; }
+.mt-15   { margin-top: 15px; }
+.mt-20   { margin-top: 20px; }
+
+/* ============================
+   Collapsible "Advanced" panel
+   ============================ */
+
+details.card > summary.summary {
+  cursor: pointer;
+  font-weight: 650;
+  list-style: none;
+}
+
+details.card > summary.summary::-webkit-details-marker {
+  display: none;
+}
+
+details.card > summary.summary::after {
+  content: "▸";
+  float: right;
+  opacity: 0.65;
+}
+
+details[open].card > summary.summary::after {
+  content: "▾";
+}
