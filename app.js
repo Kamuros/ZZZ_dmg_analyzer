@@ -136,17 +136,16 @@
       i.agent.dmgBuckets.skillType = this.numById("dmgSkillTypePct", 0);
 
       i.agent.dmgBuckets.other = this.numById("dmgOtherPct", 0);
-      i.agent.dmgBuckets.vsStunned = this.numById("dmgVsStunnedPct", 0);
-
-      i.agent.pen.ratioPct = this.numById("penRatioPct", 0);
+i.agent.pen.ratioPct = this.numById("penRatioPct", 0);
       i.agent.pen.flat = Math.max(0, this.numById("penFlat", 0));
 
       i.agent.skillMultPct = Math.max(0, this.numById("skillMultPct", 100));
 
       // Anomaly
       i.agent.anomaly.type = this.strById("anomType", "auto");
-      i.agent.anomaly.prof = Math.max(0, this.numById("anomProf", 0));
+      i.agent.anomaly.prof = Math.max(0, this.numById("anomProf", 100));
       i.agent.anomaly.dmgPct = this.numById("anomDmgPct", 0);
+      i.agent.anomaly.abloomPct = this.numById("abloomDmgPct", 0);
       i.agent.anomaly.disorderPct = this.numById("disorderDmgPct", 0);
       i.agent.anomaly.allowCrit = this.boolCheckboxById("anomAllowCrit");
       i.agent.anomaly.critRatePctOverride = this.optNumById("anomCritRatePct");
@@ -178,9 +177,7 @@
       i.enemy.defIgnorePct = this.numById("defIgnorePct", 0);
 
       i.enemy.dmgTakenPct = this.numById("dmgTakenPct", 0);
-      i.enemy.dmgTakenStunnedPct = this.numById("dmgTakenStunnedPct", 0);
-
-      i.enemy.isStunned = this.boolSelectById("isStunned");
+i.enemy.isStunned = this.boolSelectById("isStunned");
       i.enemy.stunPct = this.numById("stunPct", 150);
 
       // Marginal overrides are held in memory only (not in UI inputs)
@@ -202,7 +199,7 @@
    *   attribute: Attribute,
    *   atk: number,
    *   crit: {rate:number, dmg:number},
-   *   dmgBuckets: {generic:number, attribute:number, skillType:number, other:number, vsStunned:number},
+   *   dmgBuckets: {generic:number, attribute:number, skillType:number, other:number},
    *   pen: {ratioPct:number, flat:number},
    *   skillMultPct: number,
    *   anomaly: {
@@ -230,8 +227,7 @@
    *   defReductionPct:number,
    *   defIgnorePct:number,
    *   dmgTakenPct:number,
-   *   dmgTakenStunnedPct:number,
-   *   isStunned:boolean,
+*   isStunned:boolean,
    *   stunPct:number
    * }} enemy
    * @property {{
@@ -250,14 +246,15 @@
           attribute: "physical",
           atk: 0,
           crit: { rate: 0.05, dmg: 0.50 },
-          dmgBuckets: { generic: 0, attribute: 0, skillType: 0, other: 0, vsStunned: 0 },
+          dmgBuckets: { generic: 0, attribute: 0, skillType: 0, other: 0 },
           pen: { ratioPct: 0, flat: 0 },
           skillMultPct: 100,
           anomaly: {
             type: "auto",
-            prof: 0,
+            prof: 100,
             dmgPct: 0,
-            disorderPct: 0,
+            abloomPct: 0,
+disorderPct: 0,
             tickCountOverride: null,
             tickIntervalSecOverride: null,
             allowCrit: false,
@@ -281,8 +278,7 @@
           defReductionPct: 0,
           defIgnorePct: 0,
           dmgTakenPct: 0,
-          dmgTakenStunnedPct: 0,
-          isStunned: false,
+isStunned: false,
           stunPct: 150,
         },
         marginal: {
@@ -372,9 +368,7 @@
 
     /** @param {Inputs} i */
     static computeVulnMult(i) {
-      const base = Number(i.enemy.dmgTakenPct || 0);
-      const stunnedBonus = i.enemy.isStunned ? Number(i.enemy.dmgTakenStunnedPct || 0) : 0;
-      return MathUtil.pctToMult(base + stunnedBonus);
+      return MathUtil.pctToMult(Number(i.enemy.dmgTakenPct || 0));
     }
 
     /** @param {Inputs} i */
@@ -401,7 +395,7 @@
 
     /** @param {Inputs} i */
     static computeStunMult(i) {
-      return i.enemy.isStunned ? ((Number(i.enemy.stunPct) || 0) / 100) : 1;
+      return i.enemy.isStunned ? (1 + ((Number(i.enemy.stunPct) || 0) / 100)) : 1;
     }
 
     /** @param {Inputs} i */
@@ -409,8 +403,7 @@
       const b = i.agent.dmgBuckets;
       let total = (Number(b.generic) || 0) + (Number(b.attribute) || 0) + (Number(b.other) || 0);
       if (includeSkillType) total += (Number(b.skillType) || 0);
-      if (i.enemy.isStunned) total += (Number(b.vsStunned) || 0);
-      return total;
+return total;
     }
   }
   class StandardCalculator {
@@ -496,8 +489,13 @@
       // Anomaly ignores "Skill DMG %" bucket by design (kept consistent with your previous logic)
       const dmgPctBase = ZzzMath.dmgPctTotal(i, false);
 
-      const anomalyBonusMult = MathUtil.pctToMult(dmgPctBase + (Number(i.agent.anomaly.dmgPct) || 0));
-      const disorderBonusMult = MathUtil.pctToMult(dmgPctBase + (Number(i.agent.anomaly.disorderPct) || 0));
+      const stdBonusMult = MathUtil.pctToMult(dmgPctBase);
+
+      // Separate Anomaly/Abloom bucket (additive with each other, separate from standard DMG % bucket)
+      const anomalySpecialMult = MathUtil.pctToMult((Number(i.agent.anomaly.dmgPct) || 0) + (Number(i.agent.anomaly.abloomPct) || 0));
+
+      // Separate Disorder bucket (no Abloom by default)
+      const disorderSpecialMult = MathUtil.pctToMult(Number(i.agent.anomaly.disorderPct) || 0);
 
       const defMult = ZzzMath.computeDefMult(i);
       const resMult = ZzzMath.computeResMult(i);
@@ -505,7 +503,7 @@
       const stunMult = ZzzMath.computeStunMult(i);
 
       const perInstBase = atk * (meta.perInstanceMultPct / 100);
-      const perInstNonCrit = perInstBase * profMult * lvMult * anomalyBonusMult * defMult * resMult * vuln * stunMult;
+      const perInstNonCrit = perInstBase * profMult * lvMult * stdBonusMult * anomalySpecialMult * defMult * resMult * vuln * stunMult;
 
       // Crit special-case toggle only (default anomalies cannot crit)
       const critEnabled = !!i.agent.anomaly.allowCrit;
@@ -537,7 +535,7 @@
         disorderMultPct = 450 + Math.floor(10 - t) * 7.5;
       }
 
-      const disorderNonCrit = atk * (disorderMultPct / 100) * profMult * lvMult * disorderBonusMult * defMult * resMult * vuln * stunMult;
+      const disorderNonCrit = atk * (disorderMultPct / 100) * profMult * lvMult * stdBonusMult * disorderSpecialMult * defMult * resMult * vuln * stunMult;
       const disorderCrit = disorderNonCrit * (1 + (Number(critDmg) || 0));
       const disorderAvg = critEnabled ? (disorderNonCrit * (1 - cr) + disorderCrit * cr) : disorderNonCrit;
 
@@ -628,6 +626,7 @@
       { key: "anomProf", label: "Anomaly Proficiency", kind: "flat" },
 
       { key: "anomDmgPct", label: "Anomaly DMG", kind: "pct" },
+      { key: "abloomDmgPct", label: "Abloom DMG", kind: "pct" },
       { key: "disorderDmgPct", label: "Disorder DMG", kind: "pct" },
 
       { key: "sheerForce", label: "Sheer Force", kind: "flat" },
@@ -673,6 +672,7 @@
         case "anomProf": return { kind: "flat", value: i.agent.anomaly.prof };
 
         case "anomDmgPct": return { kind: "pct", value: i.agent.anomaly.dmgPct };
+        case "abloomDmgPct": return { kind: "pct", value: i.agent.anomaly.abloomPct };
         case "disorderDmgPct": return { kind: "pct", value: i.agent.anomaly.disorderPct };
 
         case "sheerForce": return { kind: "flat", value: i.agent.rupture.sheerForce };
@@ -784,6 +784,11 @@
           i.agent.anomaly.dmgPct = prev + dp;
           return () => { i.agent.anomaly.dmgPct = prev; };
         }
+        case "abloomDmgPct": {
+          const prev = i.agent.anomaly.abloomPct;
+          i.agent.anomaly.abloomPct = prev + dp;
+          return () => { i.agent.anomaly.abloomPct = prev; };
+        }
         case "disorderDmgPct": {
           const prev = i.agent.anomaly.disorderPct;
           i.agent.anomaly.disorderPct = prev + dp;
@@ -817,7 +822,7 @@
 
       for (const m of StatMeta.list()) {
         if (i.mode === "anomaly" && (m.key === "dmgSkillTypePct" || m.key === "critRatePct" || m.key === "critDmgPct")) continue;
-        if (i.mode !== "anomaly" && (m.key === "anomProf" || m.key === "anomDmgPct" || m.key === "disorderDmgPct")) continue;
+        if (i.mode !== "anomaly" && (m.key === "anomProf" || m.key === "anomDmgPct" || m.key === "abloomDmgPct" || m.key === "disorderDmgPct")) continue;
         if (!AppConfig.SHOW_DISORDER_UI && (m.key === "disorderDmgPct")) continue;
 
         if (i.mode === "rupture") {
@@ -826,7 +831,7 @@
           if (m.key === "sheerForce" || m.key === "sheerDmgBonusPct") continue;
         }
 
-        if (i.mode === "standard" && (m.key === "anomDmgPct" || m.key === "disorderDmgPct")) continue;
+        if (i.mode === "standard" && (m.key === "anomDmgPct" || m.key === "abloomDmgPct" || m.key === "disorderDmgPct")) continue;
 
         const override = MarginalAppliedStore.get(m.key);
         const applied = MarginalAnalyzer.resolveDelta(m.key, override);
@@ -1102,9 +1107,7 @@
       this._set("dmgAttrPct", dmg?.attribute ?? 0);
       this._set("dmgSkillTypePct", dmg?.skillType ?? 0);
       this._setIfExists("dmgOtherPct", dmg?.other ?? 0);
-      this._setIfExists("dmgVsStunnedPct", dmg?.vsStunned ?? 0);
-
-      this._set("penRatioPct", penRatioPct ?? 0);
+this._set("penRatioPct", penRatioPct ?? 0);
       this._set("penFlat", penFlat ?? 0);
 
       this._set("skillMultPct", agent?.skillMultPct ?? 100);
@@ -1150,9 +1153,7 @@
       this._set("defIgnorePct", enemy?.defIgnorePct ?? 0);
 
       this._set("dmgTakenPct", enemy?.dmgTakenPct ?? 0);
-      this._setIfExists("dmgTakenStunnedPct", enemy?.dmgTakenStunnedPct ?? 0);
-
-      const isStunnedEl = this.dom.select("isStunned");
+const isStunnedEl = this.dom.select("isStunned");
       if (isStunnedEl) isStunnedEl.value = String(!!enemy?.isStunned);
 
       this._set("stunPct", enemy?.stunPct ?? 150);
@@ -1335,8 +1336,7 @@
           defReductionPct: i.enemy.defReductionPct,
           defIgnorePct: i.enemy.defIgnorePct,
           dmgTakenPct: i.enemy.dmgTakenPct,
-          dmgTakenStunnedPct: i.enemy.dmgTakenStunnedPct,
-          isStunned: i.enemy.isStunned,
+isStunned: i.enemy.isStunned,
           stunPct: i.enemy.stunPct,
         },
         marginal: {

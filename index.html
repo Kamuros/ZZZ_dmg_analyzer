@@ -85,7 +85,7 @@
      </label>
      <label>
       Total ATK
-      <input id="atk" min="1" step="1" type="number"/>
+      <input id="atk" min="1" step="1" type="number" value="2000"/>
      </label>
     </div>
     <div class="form-row cols-2">
@@ -170,10 +170,14 @@
       <input id="anomProf" step="1" type="number" value="100"/>
      </label>
     </div>
-    <div class="form-row cols-2">
+    <div class="form-row cols-3">
      <label>
       Anomaly DMG (%)
       <input id="anomDmgPct" step="0.1" type="number" value="0"/>
+     </label>
+     <label>
+      Abloom DMG (%)
+      <input id="abloomDmgPct" step="0.1" type="number" value="0"/>
      </label>
      <label class="hidden disorder-ui">
       Disorder DMG (%)
@@ -261,14 +265,10 @@
     </div>
     <div class="hr tight">
     </div>
-    <div class="form-row cols-2">
+    <div class="form-row cols-1">
      <label>
       Other DMG (%)
       <input id="dmgOtherPct" step="0.1" type="number" value="0"/>
-     </label>
-     <label>
-      Stunned DMG Bonus (%)
-      <input id="dmgVsStunnedPct" step="0.1" type="number" value="0"/>
      </label>
     </div>
    </div>
@@ -330,10 +330,6 @@
      <label>
       DMG Taken (%)
       <input id="dmgTakenPct" step="0.1" type="number" value="0"/>
-     </label>
-     <label>
-      Stunned DMG Taken (%)
-      <input id="dmgTakenStunnedPct" step="0.1" type="number" value="0"/>
      </label>
      <label>
       Stunned?
