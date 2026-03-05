@@ -399,7 +399,7 @@ isStunned: false,
 
     /** @param {Inputs} i */
     static computeStunMult(i) {
-      return i.enemy.isStunned ? (1 + ((Number(i.enemy.stunPct) || 0) / 100)) : 1;
+      return i.enemy.isStunned ? (((Number(i.enemy.stunPct) || 0) / 100) || 1) : 1;
     }
 
     /** @param {Inputs} i */
