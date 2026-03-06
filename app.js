@@ -609,7 +609,7 @@ return total;
   }
   class StatMeta {
     static _LIST = [
-      { key: "atk", label: "Total ATK", kind: "flat" },
+      { key: "atk", label: "ATK", kind: "flat" },
 
       { key: "dmgGenericPct", label: "Generic DMG", kind: "pct" },
       { key: "dmgAttrPct", label: "Attribute DMG", kind: "pct" },
@@ -660,31 +660,33 @@ return total;
     // Smart stat-specific increments make the marginal table immediately useful
     // without requiring manual per-row setup every time.
     static DEFAULTS_BY_KEY = {
-      atk: { kind: "flat", value: 100 },
-      dmgGenericPct: { kind: "pct", value: 5 },
-      dmgAttrPct: { kind: "pct", value: 5 },
-      dmgSkillTypePct: { kind: "pct", value: 5 },
-      critRatePct: { kind: "pct", value: 3 },
-      critDmgPct: { kind: "pct", value: 6 },
-      penRatioPct: { kind: "pct", value: 3 },
-      penFlat: { kind: "flat", value: 30 },
-      defReductionPct: { kind: "pct", value: 5 },
-      defIgnorePct: { kind: "pct", value: 5 },
-      enemyResAllPct: { kind: "pct", value: -5 },
-      enemyResPhysicalPct: { kind: "pct", value: -5 },
-      enemyResFirePct: { kind: "pct", value: -5 },
-      enemyResIcePct: { kind: "pct", value: -5 },
-      enemyResElectricPct: { kind: "pct", value: -5 },
-      enemyResEtherPct: { kind: "pct", value: -5 },
+      atk: { kind: "flat", value: 0 },
+      dmgGenericPct: { kind: "pct", value: 0 },
+      dmgAttrPct: { kind: "pct", value: 0 },
+      dmgSkillTypePct: { kind: "pct", value: 0 },
+      critRatePct: { kind: "pct", value: 2.4 },
+      critDmgPct: { kind: "pct", value: 4.8 },
+      penRatioPct: { kind: "pct", value: 0 },
+      penFlat: { kind: "flat", value: 9 },
+      defReductionPct: { kind: "pct", value: 0 },
+      defIgnorePct: { kind: "pct", value: 0 },
+      enemyResAllPct: { kind: "pct", value: 0 },
+      enemyResPhysicalPct: { kind: "pct", value: 0 },
+      enemyResFirePct: { kind: "pct", value: 0 },
+      enemyResIcePct: { kind: "pct", value: 0 },
+      enemyResElectricPct: { kind: "pct", value: 0 },
+      enemyResEtherPct: { kind: "pct", value: 0 },
       dmgTakenPct: { kind: "pct", value: 5 },
       dmgTakenOtherPct: { kind: "pct", value: 5 },
       stunPct: { kind: "pct", value: 15 },
-      anomProf: { kind: "flat", value: 30 },
-      anomDmgPct: { kind: "pct", value: 5 },
+      anomProf: { kind: "flat", value: 9 },
+      anomDmgPct: { kind: "pct", value: 0 },
       disorderDmgPct: { kind: "pct", value: 5 },
-      sheerForce: { kind: "flat", value: 100 },
-      sheerDmgBonusPct: { kind: "pct", value: 5 },
+      sheerForce: { kind: "flat", value: 0 },
+      sheerDmgBonusPct: { kind: "pct", value: 0 },
     };
+
+    static ROLL_EFFICIENCY_KEYS = new Set(["critRatePct", "critDmgPct", "anomProf", "penFlat"]);
 
     /** @param {Inputs} i @param {string} key */
     static originalDisplay(i, key) {
@@ -908,16 +910,24 @@ case "disorderDmgPct": {
         const override = MarginalAppliedStore.get(m.key);
         const applied = MarginalAnalyzer.resolveDelta(m.key, override);
 
-        const revert = MarginalAnalyzer.applyDeltaInPlace(i, m.key, applied);
-        const out2 = Preview.compute(i).output;
-        revert();
+        const revertUp = MarginalAnalyzer.applyDeltaInPlace(i, m.key, applied);
+        const outUp = Preview.compute(i).output;
+        revertUp();
 
-        const gain = out2 - baseOut;
+        const downApplied = { kind: applied.kind, value: -applied.value };
+        const revertDown = MarginalAnalyzer.applyDeltaInPlace(i, m.key, downApplied);
+        const outDown = Preview.compute(i).output;
+        revertDown();
+
+        const out2 = (outUp + outDown) / 2;
+        const gain = (outUp - outDown) / 2;
         const pctGain = baseOut !== 0 ? (gain / baseOut) * 100 : 0;
 
         const orig = MarginalAnalyzer.originalDisplay(i, m.key);
         let totalVal = orig.value + (applied?.value ?? 0);
         if (m.key === "critRatePct") totalVal = MathUtil.clamp(totalVal, 0, 100);
+
+        const rollGain = MarginalAnalyzer.ROLL_EFFICIENCY_KEYS.has(m.key) ? pctGain : null;
 
         rows.push({
           key: m.key,
@@ -926,14 +936,34 @@ case "disorderDmgPct": {
           out2,
           gain,
           pctGain,
+          rollGain,
+          efficiency: null,
           origVal: orig.value,
           totalVal,
           displayKind: orig.kind,
         });
       }
 
-      rows.sort((a, b) => b.pctGain - a.pctGain);
-      return { base, rows };
+      let bestRollGain = 0;
+      for (const row of rows) {
+        if (row.rollGain !== null && Number.isFinite(row.rollGain)) {
+          bestRollGain = Math.max(bestRollGain, row.rollGain);
+        }
+      }
+
+      for (const row of rows) {
+        if (row.rollGain !== null && bestRollGain > 0) {
+          row.efficiency = (row.rollGain / bestRollGain) * 100;
+        }
+      }
+
+      rows.sort((a, b) => {
+        const aScore = (a.rollGain !== null && Number.isFinite(a.rollGain)) ? a.rollGain : a.pctGain;
+        const bScore = (b.rollGain !== null && Number.isFinite(b.rollGain)) ? b.rollGain : b.pctGain;
+        return bScore - aScore;
+      });
+
+      return { base, rows, bestRollGain };
     }
   }
 
@@ -1048,8 +1078,8 @@ case "disorderDmgPct": {
         const r = marginal.rows[idx];
         const tr = this.dom.el("tr");
         
-        if (idx === 0) tr.classList.add("best-row");
-        else if (idx < 3) tr.classList.add("top-row");
+        if (r.efficiency !== null && Number.isFinite(r.efficiency) && Math.abs(r.efficiency - 100) < 1e-9) tr.classList.add("best-row");
+        else if (r.rollGain !== null && r.efficiency !== null && r.efficiency >= 80) tr.classList.add("top-row");
 
         const tdLabel = this.dom.el("td");
         tdLabel.textContent = r.label;
@@ -1072,6 +1102,12 @@ case "disorderDmgPct": {
         const tdPct = this.dom.el("td");
         tdPct.textContent = `${MathUtil.fmtSmart(r.pctGain)}%`;
 
+        const tdRoll = this.dom.el("td");
+        tdRoll.textContent = (r.rollGain === null) ? "—" : `${MathUtil.fmtSmart(r.rollGain)}%`;
+
+        const tdEff = this.dom.el("td");
+        tdEff.textContent = (r.efficiency === null) ? "—" : `${MathUtil.fmt0(r.efficiency)}%`;
+
         tr.appendChild(tdLabel);
         tr.appendChild(tdOrig);
         tr.appendChild(tdApplied);
@@ -1079,6 +1115,8 @@ case "disorderDmgPct": {
         tr.appendChild(tdOut);
         tr.appendChild(tdGain);
         tr.appendChild(tdPct);
+        tr.appendChild(tdRoll);
+        tr.appendChild(tdEff);
 
         this.marginalBody.appendChild(tr);
       }
