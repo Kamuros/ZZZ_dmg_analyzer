@@ -657,7 +657,34 @@ return total;
   }
 
   class MarginalAnalyzer {
-    static DEFAULT_DELTA = { pct: 0, atk: 0, penFlat: 0, sheerForce: 0, anomProf: 0 };
+    // Smart stat-specific increments make the marginal table immediately useful
+    // without requiring manual per-row setup every time.
+    static DEFAULTS_BY_KEY = {
+      atk: { kind: "flat", value: 100 },
+      dmgGenericPct: { kind: "pct", value: 5 },
+      dmgAttrPct: { kind: "pct", value: 5 },
+      dmgSkillTypePct: { kind: "pct", value: 5 },
+      critRatePct: { kind: "pct", value: 3 },
+      critDmgPct: { kind: "pct", value: 6 },
+      penRatioPct: { kind: "pct", value: 3 },
+      penFlat: { kind: "flat", value: 30 },
+      defReductionPct: { kind: "pct", value: 5 },
+      defIgnorePct: { kind: "pct", value: 5 },
+      enemyResAllPct: { kind: "pct", value: -5 },
+      enemyResPhysicalPct: { kind: "pct", value: -5 },
+      enemyResFirePct: { kind: "pct", value: -5 },
+      enemyResIcePct: { kind: "pct", value: -5 },
+      enemyResElectricPct: { kind: "pct", value: -5 },
+      enemyResEtherPct: { kind: "pct", value: -5 },
+      dmgTakenPct: { kind: "pct", value: 5 },
+      dmgTakenOtherPct: { kind: "pct", value: 5 },
+      stunPct: { kind: "pct", value: 15 },
+      anomProf: { kind: "flat", value: 30 },
+      anomDmgPct: { kind: "pct", value: 5 },
+      disorderDmgPct: { kind: "pct", value: 5 },
+      sheerForce: { kind: "flat", value: 100 },
+      sheerDmgBonusPct: { kind: "pct", value: 5 },
+    };
 
     /** @param {Inputs} i @param {string} key */
     static originalDisplay(i, key) {
@@ -702,11 +729,7 @@ case "disorderDmgPct": return { kind: "pct", value: i.agent.anomaly.disorderPct 
 
     /** @param {string} key */
     static defaultApplied(key) {
-      if (key === "atk") return { kind: "flat", value: MarginalAnalyzer.DEFAULT_DELTA.atk };
-      if (key === "penFlat") return { kind: "flat", value: MarginalAnalyzer.DEFAULT_DELTA.penFlat };
-      if (key === "sheerForce") return { kind: "flat", value: MarginalAnalyzer.DEFAULT_DELTA.sheerForce };
-      if (key === "anomProf") return { kind: "flat", value: MarginalAnalyzer.DEFAULT_DELTA.anomProf };
-      return { kind: "pct", value: MarginalAnalyzer.DEFAULT_DELTA.pct };
+      return MarginalAnalyzer.DEFAULTS_BY_KEY[key] ?? { kind: "pct", value: 5 };
     }
 
     /** @param {string} key @param {{kind:"pct"|"flat",value:number}|null} override */
@@ -989,11 +1012,8 @@ case "disorderDmgPct": {
       const showAnom = (mode === "anomaly");
       const showRupture = (mode === "rupture");
 
-      this.dom.byId("anomalyHeader")?.classList.toggle("hidden", !showAnom);
-      this.dom.byId("anomalyCard")?.classList.toggle("hidden", !showAnom);
-
-      this.dom.byId("ruptureHeader")?.classList.toggle("hidden", !showRupture);
-      this.dom.byId("ruptureCard")?.classList.toggle("hidden", !showRupture);
+      this.dom.byId("anomalySection")?.classList.toggle("hidden", !showAnom);
+      this.dom.byId("ruptureSection")?.classList.toggle("hidden", !showRupture);
     }
 
     /** @param {{t:string, v:string}[]} items */
@@ -1100,6 +1120,9 @@ case "disorderDmgPct": {
       input.style.borderRadius = "10px";
       input.step = (kind === "flat") ? "1" : "0.1";
       input.value = String(val);
+      input.title = kind === "pct"
+        ? "Smart default increment for this stat. Edit any row to test your own amount."
+        : "Smart default flat increment for this stat. Edit any row to test your own amount.";
 
       input.dataset.key = row.key;
       input.dataset.kind = kind;

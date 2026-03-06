@@ -10,381 +10,400 @@
   <link href="style.css" rel="stylesheet"/>
  </head>
  <body>
-  <h1>
-   Zenless Zone Zero: Damage Inputs + “Diminishing Returns” Analyzer
-  </h1>
-  <div class="card mt-15">
-   <div class="row">
-    <label>
-     Mode
-     <select id="mode">
-      <option value="standard">
-       Standard
-      </option>
-      <option value="anomaly">
-       Anomaly
-      </option>
-      <option value="rupture">
-       Rupture
-      </option>
-     </select>
-    </label>
-   </div>
-   <div class="row mt-10">
-    <button class="btn" id="btnSave">
-     Save
-    </button>
-    <button class="btn" id="btnLoad">
-     Load
-    </button>
-    <button class="btn" id="btnExport">
-     Export JSON
-    </button>
-    <button class="btn" id="btnImport">
-     Import JSON
-    </button>
-    <input accept="application/json" class="hidden" id="importFile" type="file"/>
-    <button class="btn" id="btnReset">
-     Reset
-    </button>
+  <div class="page-shell">
+   <h1>
+    Zenless Zone Zero: Damage Inputs + “Diminishing Returns” Analyzer
+   </h1>
+   <div class="app-layout">
+    <div class="panel-left">
+     <div class="card mt-15">
+      <div class="row">
+       <label>
+        Mode
+        <select id="mode">
+         <option value="standard">
+          Standard
+         </option>
+         <option value="anomaly">
+          Anomaly
+         </option>
+         <option value="rupture">
+          Rupture
+         </option>
+        </select>
+       </label>
+      </div>
+      <div class="row mt-10">
+       <button class="btn" id="btnSave">
+        Save
+       </button>
+       <button class="btn" id="btnLoad">
+        Load
+       </button>
+       <button class="btn" id="btnExport">
+        Export JSON
+       </button>
+       <button class="btn" id="btnImport">
+        Import JSON
+       </button>
+       <input accept="application/json" class="hidden" id="importFile" type="file"/>
+       <button class="btn" id="btnReset">
+        Reset
+       </button>
+      </div>
+     </div>
+
+     <section class="section-block">
+      <h2>
+       Agent Stats
+      </h2>
+      <div class="card">
+       <div class="form">
+        <div class="form-row cols-3">
+         <label>
+          Agent Level
+          <input id="agentLevel" min="1" step="1" type="number" value="60"/>
+         </label>
+         <label>
+          Attribute
+          <select id="attribute">
+           <option value="physical">
+            Physical
+           </option>
+           <option value="fire">
+            Fire
+           </option>
+           <option value="ice">
+            Ice
+           </option>
+           <option value="electric">
+            Electric
+           </option>
+           <option value="ether">
+            Ether
+           </option>
+          </select>
+         </label>
+         <label>
+          Total ATK
+          <input id="atk" min="1" step="1" type="number" value="2000"/>
+         </label>
+        </div>
+        <div class="form-row cols-2">
+         <label>
+          Crit Rate (%)
+          <input id="critRatePct" max="100" min="0" step="0.1" type="number" value="5"/>
+         </label>
+         <label>
+          Crit DMG (%)
+          <input id="critDmgPct" min="0" step="0.1" type="number" value="50"/>
+         </label>
+        </div>
+        <div class="form-row cols-3">
+         <label>
+          Generic DMG (%)
+          <input id="dmgGenericPct" step="0.1" type="number" value="0"/>
+         </label>
+         <label>
+          Attribute DMG (%)
+          <input id="dmgAttrPct" step="0.1" type="number" value="0"/>
+         </label>
+         <label>
+          Skill DMG (%)
+          <input id="dmgSkillTypePct" step="0.1" type="number" value="0"/>
+         </label>
+        </div>
+        <div class="form-row cols-3">
+         <label>
+          PEN Ratio (%)
+          <input id="penRatioPct" step="0.1" type="number" value="0"/>
+         </label>
+         <label>
+          PEN
+          <input id="penFlat" step="1" type="number" value="0"/>
+         </label>
+         <label>
+          Skill Multiplier (%)
+          <input id="skillMultPct" min="0" step="0.1" type="number" value="100"/>
+         </label>
+         <label>
+          DEF Ignore (%)
+          <input id="defIgnorePct" step="0.1" type="number" value="0"/>
+         </label>
+         <label>
+          RES Ignore (%)
+          <input id="resIgnorePct" step="0.1" type="number" value="0"/>
+         </label>
+        </div>
+       </div>
+      </div>
+     </section>
+
+     <section class="section-block hidden" id="anomalySection">
+      <h2 id="anomalyHeader">
+       Agent Stats: Anomaly
+      </h2>
+      <div class="card" id="anomalyCard">
+       <div class="form">
+        <div class="form-row cols-2">
+         <label>
+          Anomaly Type
+          <select id="anomType">
+           <option selected="" value="auto">
+            Auto
+           </option>
+           <option value="assault">
+            Assault (Physical)
+           </option>
+           <option value="burn">
+            Burn (Fire)
+           </option>
+           <option value="shock">
+            Shock (Electric)
+           </option>
+           <option value="shatter">
+            Shatter (Ice)
+           </option>
+           <option value="corruption">
+            Corruption (Ether)
+           </option>
+          </select>
+         </label>
+         <label>
+          Anomaly Proficiency
+          <input id="anomProf" step="1" type="number" value="100"/>
+         </label>
+        </div>
+        <div class="form-row cols-3">
+         <label>
+          Anomaly DMG (%)
+          <input id="anomDmgPct" step="0.1" type="number" value="0"/>
+         </label>
+         <label class="hidden disorder-ui">
+          Disorder DMG (%)
+          <input id="disorderDmgPct" step="0.1" type="number" value="0"/>
+         </label>
+        </div>
+        <div class="form-row cols-3 hidden">
+         <label>
+          Tick Count (Override)
+          <input id="anomTickCount" min="1" placeholder="Auto" step="1" type="number" value=""/>
+         </label>
+         <label>
+          Tick Interval (Sec, Override)
+          <input id="anomTickIntervalSec" min="0" placeholder="Auto" step="0.05" type="number" value=""/>
+         </label>
+        </div>
+        <div class="form-row cols-3 hidden disorder-ui">
+         <label>
+          Disorder: Previous Anomaly
+          <select id="disorderPrevType">
+           <option selected="" value="auto">
+            Auto (Current Anomaly Type)
+           </option>
+           <option value="burn">
+            Burn
+           </option>
+           <option value="shock">
+            Shock
+           </option>
+           <option value="corruption">
+            Corruption
+           </option>
+           <option value="shatter">
+            Frozen (Ice)
+           </option>
+           <option value="assault">
+            Flinch (Physical)
+           </option>
+          </select>
+         </label>
+         <label class="disorder-ui">
+          Disorder: Time Passed (Sec)
+          <input id="disorderTimePassedSec" min="0" step="0.1" type="number" value="0"/>
+         </label>
+        </div>
+       </div>
+      </div>
+     </section>
+
+     <section class="section-block hidden" id="ruptureSection">
+      <h2 id="ruptureHeader">
+       Agent Stats: Rupture
+      </h2>
+      <div class="card" id="ruptureCard">
+       <div class="form">
+        <div class="form-row cols-2">
+         <label>
+          Sheer Force
+          <input id="sheerForce" step="1" type="number"/>
+         </label>
+         <label>
+          Sheer DMG (%)
+          <input id="sheerDmgBonusPct" step="0.1" type="number" value="0"/>
+         </label>
+        </div>
+       </div>
+      </div>
+     </section>
+
+     <details class="card" id="advancedTab">
+      <summary class="summary">
+       Advanced
+      </summary>
+      <div class="form mt-12_5">
+       <div class="form-row cols-3">
+        <label>
+         Allow Anomaly Crit
+         <select id="anomAllowCrit">
+          <option value="0" selected>Off</option>
+          <option value="1">On</option>
+         </select>
+        </label>
+        <label>
+         Anomaly Crit Rate (%)
+         <input id="anomCritRatePct" max="100" min="0" step="0.1" type="number" value="100"/>
+        </label>
+        <label>
+         Anomaly Crit DMG (%)
+         <input id="anomCritDmgPct" min="0" step="0.1" type="number" value="50"/>
+        </label>
+       </div>
+       <div class="hr tight"></div>
+       <div class="form-row cols-1">
+        <label>
+         Other DMG (%)
+         <input id="dmgOtherPct" step="0.1" type="number" value="0"/>
+        </label>
+       </div>
+      </div>
+     </details>
+
+     <section class="section-block">
+      <h2>
+       Enemy
+      </h2>
+      <div class="card">
+       <div class="form">
+        <div class="form-row cols-3">
+         <label>
+          Enemy Level
+          <input id="enemyLevel" min="1" step="1" type="number" value="70"/>
+         </label>
+         <label>
+          Enemy DEF
+          <input id="enemyDef" min="0" step="1" type="number" value="100"/>
+         </label>
+         <label>
+          All-Attribute RES (%)
+          <input id="enemyResAllPct" step="0.1" type="number" value="0"/>
+         </label>
+        </div>
+        <div class="form-row cols-3">
+         <label>
+          Physical RES (%)
+          <input id="enemyResPhysicalPct" step="0.1" type="number" value="0"/>
+         </label>
+         <label>
+          Fire RES (%)
+          <input id="enemyResFirePct" step="0.1" type="number" value="0"/>
+         </label>
+         <label>
+          Ice RES (%)
+          <input id="enemyResIcePct" step="0.1" type="number" value="0"/>
+         </label>
+        </div>
+        <div class="form-row cols-2">
+         <label>
+          Electric RES (%)
+          <input id="enemyResElectricPct" step="0.1" type="number" value="0"/>
+         </label>
+         <label>
+          Ether RES (%)
+          <input id="enemyResEtherPct" step="0.1" type="number" value="0"/>
+         </label>
+        </div>
+        <div class="form-row cols-3">
+         <label>
+          DEF Reduction (%)
+          <input id="defReductionPct" step="0.1" type="number" value="0"/>
+         </label>
+         <label>
+          RES Reduction (%)
+          <input id="resReductionPct" step="0.1" type="number" value="0"/>
+         </label>
+        </div>
+        <div class="form-row cols-4">
+         <label>
+          DMG Taken (%)
+          <input id="dmgTakenPct" step="0.1" type="number" value="0"/>
+         </label>
+         <label>
+          Other DMG Taken (%)
+          <input id="dmgTakenOtherPct" step="0.1" type="number" value="0"/>
+         </label>
+         <label>
+          Stunned?
+          <select id="isStunned">
+           <option value="false">
+            No
+           </option>
+           <option value="true">
+            Yes
+           </option>
+          </select>
+         </label>
+         <label>
+          Stunned Multiplier (%)
+          <input id="stunPct" step="1" type="number" value="150"/>
+         </label>
+        </div>
+       </div>
+      </div>
+     </section>
+    </div>
+
+    <aside class="panel-right">
+     <h2>
+      Outputs + Marginal Value
+     </h2>
+     <div class="card results-card">
+      <div class="kpi" id="kpi"></div>
+      <div class="hr"></div>
+      <div class="table-wrap">
+       <table>
+        <thead>
+         <tr>
+          <th>
+           Stat
+          </th>
+          <th>
+           Original
+          </th>
+          <th>
+           Applied
+          </th>
+          <th>
+           Sum
+          </th>
+          <th>
+           New Output
+          </th>
+          <th>
+           DMG Gain
+          </th>
+          <th>
+           DMG Gain (%)
+          </th>
+         </tr>
+        </thead>
+        <tbody id="marginalBody"></tbody>
+       </table>
+      </div>
+     </div>
+    </aside>
    </div>
   </div>
-  <h2>
-   Agent Stats
-  </h2>
-  <div class="card">
-   <div class="form">
-    <div class="form-row cols-3">
-     <label>
-      Agent Level
-      <input id="agentLevel" min="1" step="1" type="number" value="60"/>
-     </label>
-     <label>
-      Attribute
-      <select id="attribute">
-       <option value="physical">
-        Physical
-       </option>
-       <option value="fire">
-        Fire
-       </option>
-       <option value="ice">
-        Ice
-       </option>
-       <option value="electric">
-        Electric
-       </option>
-       <option value="ether">
-        Ether
-       </option>
-      </select>
-     </label>
-     <label>
-      Total ATK
-      <input id="atk" min="1" step="1" type="number" value="2000"/>
-     </label>
-    </div>
-    <div class="form-row cols-2">
-     <label>
-      Crit Rate (%)
-      <input id="critRatePct" max="100" min="0" step="0.1" type="number" value="5"/>
-     </label>
-     <label>
-      Crit DMG (%)
-      <input id="critDmgPct" min="0" step="0.1" type="number" value="50"/>
-     </label>
-    </div>
-    <div class="form-row cols-3">
-     <label>
-      Generic DMG (%)
-      <input id="dmgGenericPct" step="0.1" type="number" value="0"/>
-     </label>
-     <label>
-      Attribute DMG (%)
-      <input id="dmgAttrPct" step="0.1" type="number" value="0"/>
-     </label>
-     <label>
-      Skill DMG (%)
-      <input id="dmgSkillTypePct" step="0.1" type="number" value="0"/>
-     </label>
-    </div>
-    <div class="form-row cols-3">
-     <label>
-      PEN Ratio (%)
-      <input id="penRatioPct" step="0.1" type="number" value="0"/>
-     </label>
-     <label>
-      PEN
-      <input id="penFlat" step="1" type="number" value="0"/>
-     </label>
-     <label>
-      Skill Multiplier (%)
-      <input id="skillMultPct" min="0" step="0.1" type="number" value="100"/>
-     </label>
-     <label>
-      DEF Ignore (%)
-      <input id="defIgnorePct" step="0.1" type="number" value="0"/>
-     </label>
-     <label>
-      RES Ignore (%)
-      <input id="resIgnorePct" step="0.1" type="number" value="0"/>
-     </label>
-    </div>
-   </div>
-  </div>
-  <h2 id="anomalyHeader">
-   Agent Stats: Anomaly
-  </h2>
-  <div class="card" id="anomalyCard">
-   <div class="form">
-    <div class="form-row cols-2">
-     <label>
-      Anomaly Type
-      <select id="anomType">
-       <option selected="" value="auto">
-        Auto
-       </option>
-       <option value="assault">
-        Assault (Physical)
-       </option>
-       <option value="burn">
-        Burn (Fire)
-       </option>
-       <option value="shock">
-        Shock (Electric)
-       </option>
-       <option value="shatter">
-        Shatter (Ice)
-       </option>
-       <option value="corruption">
-        Corruption (Ether)
-       </option>
-      </select>
-     </label>
-     <label>
-      Anomaly Proficiency
-      <input id="anomProf" step="1" type="number" value="100"/>
-     </label>
-    </div>
-    <div class="form-row cols-3">
-     <label>
-      Anomaly DMG (%)
-      <input id="anomDmgPct" step="0.1" type="number" value="0"/>
-     </label>
-<label class="hidden disorder-ui">
-      Disorder DMG (%)
-      <input id="disorderDmgPct" step="0.1" type="number" value="0"/>
-     </label>
-    </div>
-    <div class="form-row cols-3 hidden">
-     <label>
-      Tick Count (Override)
-      <input id="anomTickCount" min="1" placeholder="Auto" step="1" type="number" value=""/>
-     </label>
-     <label>
-      Tick Interval (Sec, Override)
-      <input id="anomTickIntervalSec" min="0" placeholder="Auto" step="0.05" type="number" value=""/>
-     </label>
-    </div>
-    <div class="form-row cols-3 hidden disorder-ui">
-     <label>
-      Disorder: Previous Anomaly
-      <select id="disorderPrevType">
-       <option selected="" value="auto">
-        Auto (Current Anomaly Type)
-       </option>
-       <option value="burn">
-        Burn
-       </option>
-       <option value="shock">
-        Shock
-       </option>
-       <option value="corruption">
-        Corruption
-       </option>
-       <option value="shatter">
-        Frozen (Ice)
-       </option>
-       <option value="assault">
-        Flinch (Physical)
-       </option>
-      </select>
-     </label>
-     <label class="disorder-ui">
-      Disorder: Time Passed (Sec)
-      <input id="disorderTimePassedSec" min="0" step="0.1" type="number" value="0"/>
-     </label>
-    </div>
-   </div>
-  </div>
-  <h2 id="ruptureHeader">
-   Agent Stats: Rupture
-  </h2>
-  <div class="card" id="ruptureCard">
-   <div class="form">
-    <div class="form-row cols-2">
-     <label>
-      Sheer Force
-      <input id="sheerForce" step="1" type="number"/>
-     </label>
-     <label>
-      Sheer DMG (%)
-      <input id="sheerDmgBonusPct" step="0.1" type="number" value="0"/>
-     </label>
-    </div>
-   </div>
-  </div>
-  <details class="card mt-20" id="advancedTab">
-   <summary class="summary">
-    Advanced
-   </summary>
-   <div class="form mt-12_5">
-    <div class="form-row cols-3">
-     <label>
-      Allow Anomaly Crit
-      <select id="anomAllowCrit">
-        <option value="0" selected>Off</option>
-        <option value="1">On</option>
-      </select>
-     </label>
-     <label>
-      Anomaly Crit Rate (%)
-      <input id="anomCritRatePct" max="100" min="0" step="0.1" type="number" value="100"/>
-     </label>
-     <label>
-      Anomaly Crit DMG (%)
-      <input id="anomCritDmgPct" min="0" step="0.1" type="number" value="50"/>
-     </label>
-    </div>
-    <div class="hr tight">
-    </div>
-    <div class="form-row cols-1">
-     <label>
-      Other DMG (%)
-      <input id="dmgOtherPct" step="0.1" type="number" value="0"/>
-     </label>
-    </div>
-   </div>
-  </details>
-  <h2>
-   Enemy
-  </h2>
-  <div class="card">
-   <div class="form">
-    <div class="form-row cols-3">
-     <label>
-      Enemy Level
-      <input id="enemyLevel" min="1" step="1" type="number" value="70"/>
-     </label>
-     <label>
-      Enemy DEF
-      <input id="enemyDef" min="0" step="1" type="number" value="100"/>
-     </label>
-     <label>
-      All-Attribute RES (%)
-      <input id="enemyResAllPct" step="0.1" type="number" value="0"/>
-     </label>
-    </div>
-    <div class="form-row cols-3">
-     <label>
-      Physical RES (%)
-      <input id="enemyResPhysicalPct" step="0.1" type="number" value="0"/>
-     </label>
-     <label>
-      Fire RES (%)
-      <input id="enemyResFirePct" step="0.1" type="number" value="0"/>
-     </label>
-     <label>
-      Ice RES (%)
-      <input id="enemyResIcePct" step="0.1" type="number" value="0"/>
-     </label>
-    </div>
-    <div class="form-row cols-2">
-     <label>
-      Electric RES (%)
-      <input id="enemyResElectricPct" step="0.1" type="number" value="0"/>
-     </label>
-     <label>
-      Ether RES (%)
-      <input id="enemyResEtherPct" step="0.1" type="number" value="0"/>
-     </label>
-    </div>
-    <div class="form-row cols-3">
-     <label>
-      DEF Reduction (%)
-      <input id="defReductionPct" step="0.1" type="number" value="0"/>
-     </label>
-     <label>
-      RES Reduction (%)
-      <input id="resReductionPct" step="0.1" type="number" value="0"/>
-     </label>
-    </div>
-    <div class="form-row cols-4">
-     <label>
-      DMG Taken (%)
-      <input id="dmgTakenPct" step="0.1" type="number" value="0"/>
-     </label>
-     <label>
-      Other DMG Taken (%)
-      <input id="dmgTakenOtherPct" step="0.1" type="number" value="0"/>
-     </label>
-     <label>
-      Stunned?
-      <select id="isStunned">
-       <option value="false">
-        No
-       </option>
-       <option value="true">
-        Yes
-       </option>
-      </select>
-     </label>
-     <label>
-      Stunned Multiplier (%)
-      <input id="stunPct" step="1" type="number" value="150"/>
-     </label>
-    </div>
-   </div>
-  </div>
-  <h2>
-   Outputs + Marginal Value
-  </h2>
-  <div class="card">
-   <div class="kpi" id="kpi">
-   </div>
-   <div class="hr">
-   </div>
-   <table>
-    <thead>
-     <tr>
-      <th>
-       Stat
-      </th>
-      <th>
-       Original
-      </th>
-      <th>
-       Applied
-      </th>
-      <th>
-       Sum
-      </th>
-      <th>
-       New Output
-      </th>
-      <th>
-       DMG Gain
-      </th>
-      <th>
-       DMG Gain (%)
-      </th>
-     </tr>
-    </thead>
-    <tbody id="marginalBody">
-    </tbody>
-   </table>
-  </div>
-  <script defer="" src="app.js">
-  </script>
+  <script defer="" src="app.js"></script>
  </body>
 </html>
