@@ -200,7 +200,7 @@ i.agent.anomaly.disorderPct = this.numById("disorderDmgPct", 0);
       i.enemy.resReductionPct = this.numById("resReductionPct", 0);
 
       i.enemy.defReductionPct = this.numById("defReductionPct", 0);
-      i.enemy.defIgnorePct = this.numById("defIgnorePct", 0);
+      i.agent.defIgnorePct = this.numById("defIgnorePct", 0);
 
       i.enemy.dmgTakenPct = this.numById("dmgTakenPct", 0);
       i.enemy.dmgTakenOtherPct = this.numById("dmgTakenOtherPct", 0);
@@ -229,6 +229,7 @@ i.enemy.isStunned = this.boolSelectById("isStunned");
    *   dmgBuckets: {generic:number, attribute:number, skillType:number, other:number},
    *   pen: {ratioPct:number, flat:number},
    *   resIgnorePct: number,
+   *   defIgnorePct: number,
    *   skillMultPct: number,
    *   anomaly: {
    *     type: string,
@@ -251,7 +252,6 @@ i.enemy.isStunned = this.boolSelectById("isStunned");
    *   resByAttr: Record<Attribute, number|null>,
    *   resReductionPct:number,
    *   defReductionPct:number,
-   *   defIgnorePct:number,
    *   dmgTakenPct:number,
    *   dmgTakenOtherPct:number,
    *   isStunned:boolean,
@@ -276,6 +276,7 @@ i.enemy.isStunned = this.boolSelectById("isStunned");
           dmgBuckets: { generic: 0, attribute: 0, skillType: 0, other: 0 },
           pen: { ratioPct: 0, flat: 0 },
           resIgnorePct: 0,
+          defIgnorePct: 0,
           skillMultPct: 100,
           anomaly: {
             type: "auto",
@@ -301,7 +302,6 @@ disorderPct: 0,
           resByAttr: { physical: null, fire: null, ice: null, electric: null, ether: null },
           resReductionPct: 0,
           defReductionPct: 0,
-          defIgnorePct: 0,
           dmgTakenPct: 0,
           dmgTakenOtherPct: 0,
 isStunned: false,
@@ -404,7 +404,7 @@ isStunned: false,
       let def = Math.max(0, Number(i.enemy.def) || 0);
 
       // DEF shred/ignore as additive % of enemy DEF
-      const defPctDown = MathUtil.clamp((Number(i.enemy.defReductionPct || 0) + Number(i.enemy.defIgnorePct || 0)) / 100, 0, 1);
+      const defPctDown = MathUtil.clamp((Number(i.enemy.defReductionPct || 0) + Number(i.agent.defIgnorePct || 0)) / 100, 0, 1);
       def = def * (1 - defPctDown);
 
       // PEN Ratio first
@@ -727,7 +727,7 @@ return total;
         case "penFlat": return { kind: "flat", value: i.agent.pen.flat };
 
         case "defReductionPct": return { kind: "pct", value: i.enemy.defReductionPct };
-        case "defIgnorePct": return { kind: "pct", value: i.enemy.defIgnorePct };
+        case "defIgnorePct": return { kind: "pct", value: i.agent.defIgnorePct };
         case "resReductionPct": return { kind: "pct", value: i.enemy.resReductionPct };
         case "resIgnorePct": return { kind: "pct", value: i.agent.resIgnorePct };
 
@@ -833,9 +833,9 @@ return total;
           return () => { i.enemy.defReductionPct = prev; };
         }
         case "defIgnorePct": {
-          const prev = i.enemy.defIgnorePct;
-          i.enemy.defIgnorePct = prev + dp;
-          return () => { i.enemy.defIgnorePct = prev; };
+          const prev = i.agent.defIgnorePct;
+          i.agent.defIgnorePct = prev + dp;
+          return () => { i.agent.defIgnorePct = prev; };
         }
         case "resReductionPct": {
           const prev = i.enemy.resReductionPct;
@@ -1274,7 +1274,7 @@ return total;
       this._setIfExists("resReductionPct", enemy?.resReductionPct ?? 0);
 
       this._set("defReductionPct", enemy?.defReductionPct ?? 0);
-      this._set("defIgnorePct", enemy?.defIgnorePct ?? 0);
+      this._set("defIgnorePct", agent?.defIgnorePct ?? 0);
 
       this._set("dmgTakenPct", enemy?.dmgTakenPct ?? 0);
       this._set("dmgTakenOtherPct", enemy?.dmgTakenOtherPct ?? 0);
@@ -1467,6 +1467,7 @@ return total;
           dmgBuckets: { ...i.agent.dmgBuckets },
           pen: { ratioPct: i.agent.pen.ratioPct, flat: i.agent.pen.flat },
           resIgnorePct: i.agent.resIgnorePct,
+          defIgnorePct: i.agent.defIgnorePct,
           skillMultPct: i.agent.skillMultPct,
           anomaly: { ...i.agent.anomaly },
           rupture: { ...i.agent.rupture },
@@ -1477,7 +1478,6 @@ return total;
           resByAttr: { ...i.enemy.resByAttr },
           resReductionPct: i.enemy.resReductionPct,
           defReductionPct: i.enemy.defReductionPct,
-          defIgnorePct: i.enemy.defIgnorePct,
           dmgTakenPct: i.enemy.dmgTakenPct,
           dmgTakenOtherPct: i.enemy.dmgTakenOtherPct,
           isStunned: i.enemy.isStunned,
