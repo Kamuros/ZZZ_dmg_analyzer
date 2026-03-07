@@ -57,18 +57,16 @@
     }
     static fmtMaybe1(x) {
       if (!Number.isFinite(x)) return "—";
-      const rounded1 = Math.round(x * 10) / 10;
-      const r = Math.round(rounded1);
-      if (Math.abs(rounded1 - r) < 1e-6) return String(r);
-      return rounded1.toFixed(1);
+      const r = Math.round(x);
+      if (Math.abs(x - r) < 1e-9) return String(r);
+      return x.toFixed(1);
     }
-    // Show 1 decimal only when fractional (with float-noise tolerance)
+    // Show 1 decimal only when fractional
     static fmtSmart(x) {
       if (!Number.isFinite(x)) return "—";
-      const rounded1 = Math.round(x * 10) / 10;
-      const r = Math.round(rounded1);
-      if (Math.abs(rounded1 - r) < 1e-6) return String(r);
-      return rounded1.toFixed(1);
+      const r = Math.round(x);
+      if (Math.abs(x - r) < 1e-9) return String(r);
+      return x.toFixed(1);
     }
   }
 
@@ -164,8 +162,7 @@
       i.agent.dmgBuckets.skillType = this.numById("dmgSkillTypePct", 0);
 
       i.agent.dmgBuckets.other = this.numById("dmgOtherPct", 0);
-      i.agent.resIgnorePct = this.numById("resIgnorePct", 0);
-      i.agent.pen.ratioPct = this.numById("penRatioPct", 0);
+i.agent.pen.ratioPct = this.numById("penRatioPct", 0);
       i.agent.pen.flat = Math.max(0, this.numById("penFlat", 0));
 
       i.agent.skillMultPct = Math.max(0, this.numById("skillMultPct", 100));
@@ -517,7 +514,7 @@ return total;
       const stdBonusMult = MathUtil.pctToMult(dmgPctBase);
 
       // Separate Anomaly DMG % bucket (separate from standard DMG % bucket)
-      const anomalySpecialMult = MathUtil.pctToMult(Number(i.agent.anomaly.dmgPct) || 0);
+      const anomalySpecialMult = MathUtil.pctToMult((Number(i.agent.anomaly.dmgPct) || 0) + (Number(i.agent.anomaly.dmgPct) || 0));
 
       // Separate Disorder DMG % bucket
       const disorderSpecialMult = MathUtil.pctToMult(Number(i.agent.anomaly.disorderPct) || 0);
@@ -693,23 +690,6 @@ return total;
       sheerForce: { kind: "flat", value: 0 },
       sheerDmgBonusPct: { kind: "pct", value: 0 },
     };
-
-    /** @param {Inputs} i */
-    static cloneInputs(i) {
-      if (typeof structuredClone === "function") return structuredClone(i);
-      return JSON.parse(JSON.stringify(i));
-    }
-
-    /** @param {Inputs} i @param {Iterable<[string, {kind:"pct"|"flat", value:number}]>} entries */
-    static applyManyInPlace(i, entries) {
-      const reverts = [];
-      for (const [key, d] of entries) {
-        reverts.push(MarginalAnalyzer.applyDeltaInPlace(i, key, d));
-      }
-      return () => {
-        for (let idx = reverts.length - 1; idx >= 0; idx--) reverts[idx]();
-      };
-    }
 
     /** @param {Inputs} i @param {string} key */
     static originalDisplay(i, key) {
@@ -887,20 +867,13 @@ return total;
       }
 
       const base = Preview.compute(i);
+      const baseOut = base.output;
+
       const rows = [];
       const ruptureAllowed = new Set([
         "dmgGenericPct","dmgAttrPct","dmgSkillTypePct","critRatePct","critDmgPct",
         "resReductionPct","resIgnorePct","dmgTakenPct","dmgTakenOtherPct","stunPct","sheerForce","sheerDmgBonusPct"
       ]);
-
-      /** @type {Map<string, {kind:"pct"|"flat", value:number}>} */
-      const explicitOverrides = new Map();
-      for (const m of StatMeta.list()) {
-        const override = MarginalAppliedStore.get(m.key);
-        if (override && Number.isFinite(override.value)) {
-          explicitOverrides.set(m.key, MarginalAnalyzer.resolveDelta(m.key, override));
-        }
-      }
 
       for (const m of StatMeta.list()) {
         if (i.mode === "anomaly" && (m.key === "dmgSkillTypePct" || m.key === "critRatePct" || m.key === "critDmgPct")) continue;
@@ -919,32 +892,22 @@ return total;
         const applied = MarginalAnalyzer.resolveDelta(m.key, override);
         const orig = originalByKey.get(m.key) ?? { kind: m.kind, value: 0 };
 
-        const others = [];
-        for (const [otherKey, otherDelta] of explicitOverrides.entries()) {
-          if (otherKey === m.key) continue;
-          others.push([otherKey, otherDelta]);
-        }
-
-        const rowBaseInputs = MarginalAnalyzer.cloneInputs(i);
-        MarginalAnalyzer.applyManyInPlace(rowBaseInputs, others);
-        const rowBaseOut = Preview.compute(rowBaseInputs).output;
-
-        const rowNewInputs = MarginalAnalyzer.cloneInputs(rowBaseInputs);
-        MarginalAnalyzer.applyDeltaInPlace(rowNewInputs, m.key, applied);
-        const newOut = Preview.compute(rowNewInputs).output;
+        const revertApplied = MarginalAnalyzer.applyDeltaInPlace(i, m.key, applied);
+        const newOut = Preview.compute(i).output;
+        revertApplied();
 
         let totalVal = orig.value + (applied?.value ?? 0);
         if (m.key === "critRatePct") totalVal = MathUtil.clamp(totalVal, 0, 100);
 
-        let gain = newOut - rowBaseOut;
-        let pctGain = rowBaseOut !== 0 ? (gain / rowBaseOut) * 100 : 0;
+        let gain = newOut - baseOut;
+        let pctGain = baseOut !== 0 ? (gain / baseOut) * 100 : 0;
         let shownOut = newOut;
 
         if (!Number.isFinite(gain)) gain = 0;
         if (!Number.isFinite(pctGain)) pctGain = 0;
 
         if (m.key === "critRatePct" && totalVal <= orig.value) {
-          shownOut = rowBaseOut;
+          shownOut = baseOut;
           gain = 0;
           pctGain = 0;
         }
@@ -1226,8 +1189,7 @@ return total;
       this._set("dmgAttrPct", dmg?.attribute ?? 0);
       this._set("dmgSkillTypePct", dmg?.skillType ?? 0);
       this._setIfExists("dmgOtherPct", dmg?.other ?? 0);
-      this._setIfExists("resIgnorePct", agent?.resIgnorePct ?? 0);
-      this._set("penRatioPct", penRatioPct ?? 0);
+this._set("penRatioPct", penRatioPct ?? 0);
       this._set("penFlat", penFlat ?? 0);
 
       this._set("skillMultPct", agent?.skillMultPct ?? 100);
