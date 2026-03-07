@@ -741,19 +741,6 @@ return total;
       return MarginalAnalyzer.defaultApplied(key);
     }
 
-    /** @param {Inputs} i */
-    static applyAllCustomAppliedInPlace(i) {
-      const reverts = [];
-      for (const m of StatMeta.list()) {
-        const override = MarginalAppliedStore.get(m.key);
-        const applied = MarginalAnalyzer.resolveDelta(m.key, override);
-        reverts.push(MarginalAnalyzer.applyDeltaInPlace(i, m.key, applied));
-      }
-      return () => {
-        for (let idx = reverts.length - 1; idx >= 0; idx--) reverts[idx]();
-      };
-    }
-
     /** @param {Inputs} i @param {string} key @param {{kind:"pct"|"flat",value:number}} d */
     static applyDeltaInPlace(i, key, d) {
       const dp = (d.kind === "pct") ? d.value : 0;
@@ -874,7 +861,11 @@ return total;
 
     /** @param {Inputs} i */
     static compute(i) {
-      const applyBaseline = MarginalAnalyzer.applyAllCustomAppliedInPlace(i);
+      const originalByKey = new Map();
+      for (const m of StatMeta.list()) {
+        originalByKey.set(m.key, MarginalAnalyzer.originalDisplay(i, m.key));
+      }
+
       const base = Preview.compute(i);
       const baseOut = base.output;
 
@@ -899,26 +890,26 @@ return total;
 
         const override = MarginalAppliedStore.get(m.key);
         const applied = MarginalAnalyzer.resolveDelta(m.key, override);
+        const orig = originalByKey.get(m.key) ?? { kind: m.kind, value: 0 };
 
-        const revertApplied = MarginalAnalyzer.applyDeltaInPlace(i, m.key, { kind: applied.kind, value: -applied.value });
-        const outWithout = Preview.compute(i).output;
+        const revertApplied = MarginalAnalyzer.applyDeltaInPlace(i, m.key, applied);
+        const newOut = Preview.compute(i).output;
         revertApplied();
 
-        const out2 = baseOut;
-        const gain = baseOut - outWithout;
-        const pctGain = baseOut !== 0 ? (gain / baseOut) * 100 : 0;
-
-        const orig = MarginalAnalyzer.originalDisplay(i, m.key);
         let totalVal = orig.value + (applied?.value ?? 0);
         if (m.key === "critRatePct") totalVal = MathUtil.clamp(totalVal, 0, 100);
 
-        let shownOut = out2;
-        let shownGain = gain;
-        let shownPctGain = pctGain;
+        let gain = newOut - baseOut;
+        let pctGain = baseOut !== 0 ? (gain / baseOut) * 100 : 0;
+        let shownOut = newOut;
+
+        if (!Number.isFinite(gain)) gain = 0;
+        if (!Number.isFinite(pctGain)) pctGain = 0;
+
         if (m.key === "critRatePct" && totalVal <= orig.value) {
           shownOut = baseOut;
-          shownGain = 0;
-          shownPctGain = 0;
+          gain = 0;
+          pctGain = 0;
         }
 
         rows.push({
@@ -926,16 +917,14 @@ return total;
           label: m.label,
           applied,
           out2: shownOut,
-          gain: shownGain,
-          pctGain: shownPctGain,
+          gain,
+          pctGain,
           efficiency: null,
           origVal: orig.value,
           totalVal,
           displayKind: orig.kind,
         });
       }
-
-      applyBaseline();
 
       let bestPctGain = 0;
       for (const row of rows) {

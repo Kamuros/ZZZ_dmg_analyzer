@@ -12,7 +12,7 @@
  <body>
   <div class="page-shell">
    <h1>
-    Zenless Zone Zero: Damage Inputs + “Diminishing Returns” Analyzer
+    Zenless Zone Zero: Damage Inputs + “Diminishing Returns” Analyzer V1.0
    </h1>
    <div class="app-layout">
     <div class="panel-left">
@@ -62,7 +62,7 @@
         <div class="form-row cols-3">
          <label>
           Agent Level
-          <input id="agentLevel" min="1" step="1" type="number" value="60"/>
+          <input id="agentLevel" min="1" max="100" step="1" type="number" value="60"/>
          </label>
          <label>
           Attribute
@@ -92,7 +92,7 @@
         <div class="form-row cols-2">
          <label>
           Crit Rate (%)
-          <input inputmode="decimal" id="critRatePct" type="text" value="5"/>
+          <input inputmode="decimal" id="critRatePct" max="100" type="text" value="5"/>
          </label>
          <label>
           Crit DMG (%)
@@ -289,7 +289,7 @@
         <div class="form-row cols-3">
          <label>
           Enemy Level
-          <input id="enemyLevel" min="1" step="1" type="number" value="70"/>
+          <input id="enemyLevel" min="1" max="70" step="1" type="number" value="70"/>
          </label>
          <label>
           Enemy DEF
