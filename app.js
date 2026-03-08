@@ -83,37 +83,44 @@
       this.dom = dom;
     }
 
-    parseNumericValue(raw, fallback = 0) {
+    parseNumericValue(raw, fallback = 0, allowPlus = true) {
       if (raw === "" || raw === null || raw === undefined) return fallback;
       if (typeof raw === "number") return Number.isFinite(raw) ? raw : fallback;
       const s = String(raw).trim();
       if (!s) return fallback;
-      if (!/^[+\-\d.\s]+$/.test(s)) return fallback;
-      const compact = s.replace(/\s+/g, "");
-      const parts = compact.split("+");
-      let total = 0;
-      for (const part of parts) {
-        if (!part) return fallback;
-        const n = Number(part);
-        if (!Number.isFinite(n)) return fallback;
-        total += n;
+
+      if (allowPlus) {
+        if (!/^[+\-\d.\s]+$/.test(s)) return fallback;
+        const compact = s.replace(/\s+/g, "");
+        const parts = compact.split("+");
+        let total = 0;
+        for (const part of parts) {
+          if (!part) return fallback;
+          const n = Number(part);
+          if (!Number.isFinite(n)) return fallback;
+          total += n;
+        }
+        return total;
       }
-      return total;
+
+      if (!/^[\-\d.\s]+$/.test(s)) return fallback;
+      const n = Number(s.replace(/\s+/g, ""));
+      return Number.isFinite(n) ? n : fallback;
     }
 
-    numById(id, fallback = 0) {
+    numById(id, fallback = 0, allowPlus = true) {
       const el = this.dom.input(id) || this.dom.select(id);
       if (!el) return fallback;
       const v = /** @type {any} */ (el).value;
-      return this.parseNumericValue(v, fallback);
+      return this.parseNumericValue(v, fallback, allowPlus);
     }
 
-    optNumById(id) {
+    optNumById(id, allowPlus = true) {
       const el = this.dom.input(id);
       if (!el) return null;
       const v = el.value;
       if (v === "" || v === null || v === undefined) return null;
-      const n = this.parseNumericValue(v, NaN);
+      const n = this.parseNumericValue(v, NaN, allowPlus);
       return Number.isFinite(n) ? n : null;
     }
 
@@ -152,7 +159,7 @@
       i.jsonName = (this.strById("jsonName", "").trim());
       i.mode = /** @type {Inputs["mode"]} */ (mode);
 
-      i.agent.level = MathUtil.clamp(Math.floor(this.numById("agentLevel", 60)), 1, 60);
+      i.agent.level = MathUtil.clamp(Math.floor(this.numById("agentLevel", 60, false)), 1, 60);
       i.agent.attribute = /** @type {Attribute} */ (this.strById("attribute", "physical"));
       i.agent.atk = Math.max(0, this.readAtk());
 
@@ -168,7 +175,7 @@
       i.agent.pen.ratioPct = this.numById("penRatioPct", 0);
       i.agent.pen.flat = Math.max(0, this.numById("penFlat", 0));
 
-      i.agent.skillMultPct = Math.max(0, this.numById("skillMultPct", 100));
+      i.agent.skillMultPct = Math.max(0, this.numById("skillMultPct", 100, false));
 
       // Anomaly
       i.agent.anomaly.type = this.strById("anomType", "auto");
@@ -635,6 +642,7 @@ return total;
       { key: "dmgGenericPct", label: "Generic DMG", kind: "pct" },
       { key: "dmgAttrPct", label: "Attribute DMG", kind: "pct" },
       { key: "dmgSkillTypePct", label: "Skill DMG", kind: "pct" },
+      { key: "dmgOtherPct", label: "Other DMG", kind: "pct" },
 
       { key: "critRatePct", label: "Crit Rate", kind: "pct" },
       { key: "critDmgPct", label: "Crit DMG", kind: "pct" },
@@ -676,6 +684,7 @@ return total;
       dmgGenericPct: { kind: "pct", value: 0 },
       dmgAttrPct: { kind: "pct", value: 30 },
       dmgSkillTypePct: { kind: "pct", value: 0 },
+      dmgOtherPct: { kind: "pct", value: 0 },
       critRatePct: { kind: "pct", value: 24 },
       critDmgPct: { kind: "pct", value: 48 },
       penRatioPct: { kind: "pct", value: 24 },
@@ -719,6 +728,7 @@ return total;
         case "dmgGenericPct": return { kind: "pct", value: i.agent.dmgBuckets.generic };
         case "dmgAttrPct": return { kind: "pct", value: i.agent.dmgBuckets.attribute };
         case "dmgSkillTypePct": return { kind: "pct", value: i.agent.dmgBuckets.skillType };
+        case "dmgOtherPct": return { kind: "pct", value: i.agent.dmgBuckets.other };
 
         case "critRatePct": return { kind: "pct", value: i.agent.crit.rate * 100 };
         case "critDmgPct": return { kind: "pct", value: i.agent.crit.dmg * 100 };
@@ -787,6 +797,11 @@ return total;
           const prev = i.agent.dmgBuckets.skillType;
           i.agent.dmgBuckets.skillType = prev + dp;
           return () => { i.agent.dmgBuckets.skillType = prev; };
+        }
+        case "dmgOtherPct": {
+          const prev = i.agent.dmgBuckets.other;
+          i.agent.dmgBuckets.other = prev + dp;
+          return () => { i.agent.dmgBuckets.other = prev; };
         }
 
         case "critRatePct": {
@@ -1305,6 +1320,7 @@ return total;
       // Debounced refresh: coalesce multiple input events into one paint-frame.
       this._refreshPending = false;
 
+      this._initNumericInputRestrictions();
       this._wireEvents();
       this.refresh();
     }
@@ -1372,6 +1388,80 @@ return total;
       (/** @type {any} */ (el)).disabled = !!disabled;
       const label = el.closest ? el.closest("label") : null;
       if (label) label.classList.toggle("is-disabled", !!disabled);
+    }
+
+    _initNumericInputRestrictions() {
+      const selector = 'input[data-number-only="true"], input[data-allow-plus="true"]';
+      const navigationKeys = new Set([
+        "Backspace", "Delete", "Tab", "Enter", "Escape",
+        "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown",
+        "Home", "End"
+      ]);
+
+      const sanitizeValue = (value, allowPlus) => {
+        let s = String(value ?? "").replace(/\s+/g, "");
+        if (!s) return "";
+
+        if (allowPlus) {
+          s = s.replace(/[^0-9+\-.]/g, "");
+          s = s.replace(/(?!^)-/g, "");
+          const hadLeadingMinus = s.startsWith("-");
+          const body = hadLeadingMinus ? s.slice(1) : s;
+          const parts = body.split("+").map((part) => {
+            if (!part) return "";
+            const cleaned = part.replace(/-/g, "");
+            const firstDot = cleaned.indexOf(".");
+            if (firstDot === -1) return cleaned;
+            return cleaned.slice(0, firstDot + 1) + cleaned.slice(firstDot + 1).replace(/\./g, "");
+          });
+          return (hadLeadingMinus ? "-" : "") + parts.join("+");
+        }
+
+        s = s.replace(/[^0-9\-.]/g, "");
+        s = s.replace(/(?!^)-/g, "");
+        const firstDot = s.indexOf(".");
+        if (firstDot !== -1) {
+          s = s.slice(0, firstDot + 1) + s.slice(firstDot + 1).replace(/\./g, "");
+        }
+        return s;
+      };
+
+      this.dom.qsa(selector).forEach((node) => {
+        if (!(node instanceof HTMLInputElement)) return;
+        const allowPlus = node.dataset.allowPlus === "true";
+
+        node.addEventListener("keydown", (e) => {
+          if (e.ctrlKey || e.metaKey || e.altKey) return;
+          if (navigationKeys.has(e.key)) return;
+          if (/^[0-9]$/.test(e.key)) return;
+          if (e.key === ".") return;
+          if (e.key === "-" && node.selectionStart === 0 && !node.value.includes("-")) return;
+          if (allowPlus && e.key === "+") return;
+          e.preventDefault();
+        });
+
+        node.addEventListener("input", () => {
+          const sanitized = sanitizeValue(node.value, allowPlus);
+          if (node.value !== sanitized) node.value = sanitized;
+        });
+
+        node.addEventListener("paste", (e) => {
+          const pasted = e.clipboardData?.getData("text") ?? "";
+          const sanitized = sanitizeValue(pasted, allowPlus);
+          e.preventDefault();
+          const start = node.selectionStart ?? node.value.length;
+          const end = node.selectionEnd ?? node.value.length;
+          const next = node.value.slice(0, start) + sanitized + node.value.slice(end);
+          node.value = sanitizeValue(next, allowPlus);
+          const caret = Math.min((start + sanitized.length), node.value.length);
+          try { node.setSelectionRange(caret, caret); } catch {}
+          node.dispatchEvent(new Event("input", { bubbles: true }));
+        });
+
+        node.addEventListener("drop", (e) => {
+          e.preventDefault();
+        });
+      });
     }
 
     _wireEvents() {

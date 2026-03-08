@@ -62,7 +62,7 @@
         <div class="form-row cols-3">
          <label>
           Agent Level
-          <input id="agentLevel" min="1" max="60" step="1" type="number" value="60"/>
+          <input data-number-only="true" id="agentLevel" min="1" max="60" step="1" type="number" value="60"/>
          </label>
          <label>
           Attribute
@@ -86,53 +86,59 @@
          </label>
          <label>
           ATK
-          <input inputmode="decimal" id="atk" type="text" value="2000"/>
+          <input data-allow-plus="true" inputmode="decimal" data-allow-plus="true" id="atk" type="text" value="2000"/>
          </label>
         </div>
         <div class="form-row cols-2">
          <label>
           Crit Rate (%)
-          <input inputmode="decimal" id="critRatePct" max="100" type="text" value="5"/>
+          <input data-allow-plus="true" inputmode="decimal" data-allow-plus="true" id="critRatePct" max="100" type="text" value="5"/>
          </label>
          <label>
           Crit DMG (%)
-          <input inputmode="decimal" id="critDmgPct" type="text" value="50"/>
+          <input data-allow-plus="true" inputmode="decimal" data-allow-plus="true" id="critDmgPct" type="text" value="50"/>
          </label>
         </div>
         <div class="form-row cols-3">
          <label>
           Generic DMG (%)
-          <input inputmode="decimal" id="dmgGenericPct" type="text" value="0"/>
+          <input data-allow-plus="true" inputmode="decimal" data-allow-plus="true" id="dmgGenericPct" type="text" value="0"/>
          </label>
          <label>
           Attribute DMG (%)
-          <input inputmode="decimal" id="dmgAttrPct" type="text" value="0"/>
+          <input data-allow-plus="true" inputmode="decimal" data-allow-plus="true" id="dmgAttrPct" type="text" value="0"/>
          </label>
          <label>
           Skill DMG (%)
-          <input inputmode="decimal" id="dmgSkillTypePct" type="text" value="0"/>
+          <input data-allow-plus="true" inputmode="decimal" data-allow-plus="true" id="dmgSkillTypePct" type="text" value="0"/>
          </label>
         </div>
         <div class="form-row cols-3">
          <label>
+          Other DMG (%)
+          <input data-allow-plus="true" inputmode="decimal" data-allow-plus="true" id="dmgOtherPct" type="text" value="0"/>
+         </label>
+         <label>
           PEN Ratio (%)
-          <input inputmode="decimal" id="penRatioPct" type="text" value="0"/>
+          <input data-allow-plus="true" inputmode="decimal" data-allow-plus="true" id="penRatioPct" type="text" value="0"/>
          </label>
          <label>
           PEN
-          <input inputmode="decimal" id="penFlat" type="text" value="0"/>
+          <input data-allow-plus="true" inputmode="decimal" data-allow-plus="true" id="penFlat" type="text" value="0"/>
          </label>
+        </div>
+        <div class="form-row cols-3">
          <label>
           Skill Multiplier (%)
-          <input inputmode="decimal" id="skillMultPct" type="text" value="100"/>
+          <input data-number-only="true" id="skillMultPct" min="0" step="0.1" type="number" value="100"/>
          </label>
          <label>
           DEF Ignore (%)
-          <input inputmode="decimal" id="defIgnorePct" type="text" value="0"/>
+          <input data-allow-plus="true" inputmode="decimal" data-allow-plus="true" id="defIgnorePct" type="text" value="0"/>
          </label>
          <label>
           RES Ignore (%)
-          <input inputmode="decimal" id="resIgnorePct" type="text" value="0"/>
+          <input data-allow-plus="true" inputmode="decimal" data-allow-plus="true" id="resIgnorePct" type="text" value="0"/>
          </label>
         </div>
        </div>
@@ -171,27 +177,27 @@
          </label>
          <label>
           Anomaly Proficiency
-          <input inputmode="decimal" id="anomProf" type="text" value="100"/>
+          <input data-number-only="true" inputmode="decimal" data-number-only="true" id="anomProf" type="text" value="100"/>
          </label>
         </div>
         <div class="form-row cols-3">
          <label>
           Anomaly DMG (%)
-          <input inputmode="decimal" id="anomDmgPct" type="text" value="0"/>
+          <input data-number-only="true" inputmode="decimal" data-number-only="true" id="anomDmgPct" type="text" value="0"/>
          </label>
          <label class="hidden disorder-ui">
           Disorder DMG (%)
-          <input inputmode="decimal" id="disorderDmgPct" type="text" value="0"/>
+          <input data-number-only="true" inputmode="decimal" data-number-only="true" id="disorderDmgPct" type="text" value="0"/>
          </label>
         </div>
         <div class="form-row cols-3 hidden">
          <label>
           Tick Count (Override)
-          <input id="anomTickCount" min="1" placeholder="Auto" step="1" type="number" value=""/>
+          <input data-number-only="true" id="anomTickCount" min="1" placeholder="Auto" step="1" type="number" value=""/>
          </label>
          <label>
           Tick Interval (Sec, Override)
-          <input id="anomTickIntervalSec" min="0" placeholder="Auto" step="0.05" type="number" value=""/>
+          <input data-number-only="true" id="anomTickIntervalSec" min="0" placeholder="Auto" step="0.05" type="number" value=""/>
          </label>
         </div>
         <div class="form-row cols-3 hidden disorder-ui">
@@ -236,11 +242,11 @@
         <div class="form-row cols-2">
          <label>
           Sheer Force
-          <input inputmode="decimal" id="sheerForce" type="text" value="2000"/>
+          <input inputmode="decimal" data-number-only="true" id="sheerForce" type="text" value="2000"/>
          </label>
          <label>
           Sheer DMG (%)
-          <input inputmode="decimal" id="sheerDmgBonusPct" type="text" value="0"/>
+          <input data-number-only="true" inputmode="decimal" data-number-only="true" id="sheerDmgBonusPct" type="text" value="0"/>
          </label>
         </div>
        </div>
@@ -262,21 +268,15 @@
         </label>
         <label>
          Anomaly Crit Rate (%)
-         <input id="anomCritRatePct" max="100" min="0" step="0.1" type="number" value="100"/>
+         <input data-number-only="true" id="anomCritRatePct" max="100" min="0" step="0.1" type="number" value="100"/>
         </label>
         <label>
          Anomaly Crit DMG (%)
-         <input id="anomCritDmgPct" min="0" step="0.1" type="number" value="50"/>
+         <input data-number-only="true" id="anomCritDmgPct" min="0" step="0.1" type="number" value="50"/>
         </label>
        </div>
        
-       <div class="hr tight"></div>
-       <div class="form-row cols-1">
-        <label>
-         Other DMG (%)
-         <input id="dmgOtherPct" step="0.1" type="number" value="0"/>
-        </label>
-       </div>
+
       </div>
      </details>
 
@@ -289,55 +289,55 @@
         <div class="form-row cols-3">
          <label>
           Enemy Level
-          <input id="enemyLevel" min="1" max="70" step="1" type="number" value="70"/>
+          <input data-number-only="true" id="enemyLevel" min="1" max="70" step="1" type="number" value="70"/>
          </label>
          <label>
           Enemy DEF
-          <input id="enemyDef" min="0" step="1" type="number" value="300"/>
+          <input data-number-only="true" id="enemyDef" min="0" step="1" type="number" value="300"/>
          </label>
         </div>
         <div class="form-row cols-3">
          <label>
           Physical RES (%)
-          <input id="enemyResPhysicalPct" step="0.1" type="number" value="0"/>
+          <input data-number-only="true" id="enemyResPhysicalPct" step="0.1" type="number" value="0"/>
          </label>
          <label>
           Fire RES (%)
-          <input id="enemyResFirePct" step="0.1" type="number" value="0"/>
+          <input data-number-only="true" id="enemyResFirePct" step="0.1" type="number" value="0"/>
          </label>
          <label>
           Ice RES (%)
-          <input id="enemyResIcePct" step="0.1" type="number" value="0"/>
+          <input data-number-only="true" id="enemyResIcePct" step="0.1" type="number" value="0"/>
          </label>
         </div>
         <div class="form-row cols-2">
          <label>
           Electric RES (%)
-          <input id="enemyResElectricPct" step="0.1" type="number" value="0"/>
+          <input data-number-only="true" id="enemyResElectricPct" step="0.1" type="number" value="0"/>
          </label>
          <label>
           Ether RES (%)
-          <input id="enemyResEtherPct" step="0.1" type="number" value="0"/>
+          <input data-number-only="true" id="enemyResEtherPct" step="0.1" type="number" value="0"/>
          </label>
         </div>
         <div class="form-row cols-3">
          <label>
           DEF Reduction (%)
-          <input id="defReductionPct" step="0.1" type="number" value="0"/>
+          <input data-number-only="true" id="defReductionPct" step="0.1" type="number" value="0"/>
          </label>
          <label>
           RES Reduction (%)
-          <input id="resReductionPct" step="0.1" type="number" value="0"/>
+          <input data-number-only="true" id="resReductionPct" step="0.1" type="number" value="0"/>
          </label>
         </div>
         <div class="form-row cols-4">
          <label>
           DMG Taken (%)
-          <input id="dmgTakenPct" step="0.1" type="number" value="0"/>
+          <input data-number-only="true" id="dmgTakenPct" step="0.1" type="number" value="0"/>
          </label>
          <label>
           Other DMG Taken (%)
-          <input id="dmgTakenOtherPct" step="0.1" type="number" value="0"/>
+          <input data-number-only="true" id="dmgTakenOtherPct" step="0.1" type="number" value="0"/>
          </label>
          <label>
           Stunned?
@@ -352,7 +352,7 @@
          </label>
          <label>
           Stunned Multiplier (%)
-          <input id="stunPct" step="1" type="number" value="150"/>
+          <input data-number-only="true" id="stunPct" step="1" type="number" value="150"/>
          </label>
         </div>
        </div>
