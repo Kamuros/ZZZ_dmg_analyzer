@@ -77,50 +77,118 @@
     static SHOW_DISORDER_UI = false;
   }
 
+  class MarginalSort {
+    static DEFAULT = { key: "pctGain", dir: "desc" };
+
+    /** @param {{key:string, dir:"asc"|"desc"}} state @param {string} key */
+    static nextState(state, key) {
+      if (state.key === key) return { key, dir: state.dir === "desc" ? "asc" : "desc" };
+      return { key, dir: key === "label" ? "asc" : "desc" };
+    }
+
+    /** @param {any} row @param {string} key */
+    static valueFor(row, key) {
+      switch (key) {
+        case "label": return String(row.label || "");
+        case "origVal": return Number(row.origVal);
+        case "appliedVal": return Number(row.applied?.value ?? 0);
+        case "totalVal": return Number(row.totalVal);
+        case "out2": return Number(row.out2);
+        case "gain": return Number(row.gain);
+        case "pctGain": return Number(row.pctGain);
+        case "efficiency": return Number(row.efficiency);
+        default: return Number(row[key]);
+      }
+    }
+
+    /** @param {Array<any>} rows @param {{key:string, dir:"asc"|"desc"}} state */
+    static sortRows(rows, state) {
+      const dir = state.dir === "asc" ? 1 : -1;
+      const key = state.key || "pctGain";
+      return [...rows].sort((a, b) => {
+        const av = MarginalSort.valueFor(a, key);
+        const bv = MarginalSort.valueFor(b, key);
+
+        if (typeof av === "string" || typeof bv === "string") {
+          const cmp = String(av).localeCompare(String(bv), undefined, { sensitivity: "base" });
+          if (cmp !== 0) return cmp * dir;
+        } else {
+          const an = Number.isFinite(av) ? av : Number.NEGATIVE_INFINITY;
+          const bn = Number.isFinite(bv) ? bv : Number.NEGATIVE_INFINITY;
+          if (an !== bn) return (an - bn) * dir;
+        }
+
+        return String(a.label || "").localeCompare(String(b.label || ""), undefined, { sensitivity: "base" });
+      });
+    }
+
+    /** @param {{key:string, dir:"asc"|"desc"}} state @param {string} key */
+    static indicator(state, key) {
+      if (state.key !== key) return "";
+      return state.dir === "desc" ? "▼" : "▲";
+    }
+  }
+
+  class MetricRanker {
+    /** @param {Array<any>} rows @param {(row:any)=>number|null} getter */
+    static top3(rows, getter) {
+      const unique = [];
+      for (const row of rows) {
+        const v = getter(row);
+        if (!Number.isFinite(v)) continue;
+        if (!unique.some((x) => Math.abs(x - v) < 1e-9)) unique.push(v);
+      }
+      unique.sort((a, b) => b - a);
+      return unique.slice(0, 3);
+    }
+
+    /** @param {number|null} value @param {number[]} top */
+    static rankClass(value, top) {
+      if (!Number.isFinite(value)) return "";
+      for (let idx = 0; idx < top.length; idx++) {
+        if (Math.abs(value - top[idx]) < 1e-9) return `rank-${idx + 1}`;
+      }
+      return "";
+    }
+  }
+
   class InputParser {
     /** @param {Dom} dom */
     constructor(dom) {
       this.dom = dom;
     }
 
-    parseNumericValue(raw, fallback = 0, allowPlus = true) {
+    parseNumericValue(raw, fallback = 0) {
       if (raw === "" || raw === null || raw === undefined) return fallback;
       if (typeof raw === "number") return Number.isFinite(raw) ? raw : fallback;
       const s = String(raw).trim();
       if (!s) return fallback;
-
-      if (allowPlus) {
-        if (!/^[+\-\d.\s]+$/.test(s)) return fallback;
-        const compact = s.replace(/\s+/g, "");
-        const parts = compact.split("+");
-        let total = 0;
-        for (const part of parts) {
-          if (!part) return fallback;
-          const n = Number(part);
-          if (!Number.isFinite(n)) return fallback;
-          total += n;
-        }
-        return total;
+      if (!/^[+\-\d.\s]+$/.test(s)) return fallback;
+      const compact = s.replace(/\s+/g, "");
+      const parts = compact.split("+");
+      let total = 0;
+      for (const part of parts) {
+        if (!part) return fallback;
+        const n = Number(part);
+        if (!Number.isFinite(n)) return fallback;
+        total += n;
       }
-
-      if (!/^[\-\d.\s]+$/.test(s)) return fallback;
-      const n = Number(s.replace(/\s+/g, ""));
-      return Number.isFinite(n) ? n : fallback;
+      return total;
     }
 
-    numById(id, fallback = 0, allowPlus = true) {
+    numById(id, fallback = 0) {
       const el = this.dom.input(id) || this.dom.select(id);
       if (!el) return fallback;
       const v = /** @type {any} */ (el).value;
-      return this.parseNumericValue(v, fallback, allowPlus);
+      return this.parseNumericValue(v, fallback);
     }
 
-    optNumById(id, allowPlus = true) {
+    optNumById(id) {
       const el = this.dom.input(id);
       if (!el) return null;
       const v = el.value;
       if (v === "" || v === null || v === undefined) return null;
-      const n = this.parseNumericValue(v, NaN, allowPlus);
+      const n = this.parseNumericValue(v, NaN);
       return Number.isFinite(n) ? n : null;
     }
 
@@ -159,7 +227,7 @@
       i.jsonName = (this.strById("jsonName", "").trim());
       i.mode = /** @type {Inputs["mode"]} */ (mode);
 
-      i.agent.level = MathUtil.clamp(Math.floor(this.numById("agentLevel", 60, false)), 1, 60);
+      i.agent.level = MathUtil.clamp(Math.floor(this.numById("agentLevel", 60)), 1, 60);
       i.agent.attribute = /** @type {Attribute} */ (this.strById("attribute", "physical"));
       i.agent.atk = Math.max(0, this.readAtk());
 
@@ -175,7 +243,7 @@
       i.agent.pen.ratioPct = this.numById("penRatioPct", 0);
       i.agent.pen.flat = Math.max(0, this.numById("penFlat", 0));
 
-      i.agent.skillMultPct = Math.max(0, this.numById("skillMultPct", 100, false));
+      i.agent.skillMultPct = Math.max(0, this.numById("skillMultPct", 100));
 
       // Anomaly
       i.agent.anomaly.type = this.strById("anomType", "auto");
@@ -684,7 +752,7 @@ return total;
       dmgGenericPct: { kind: "pct", value: 0 },
       dmgAttrPct: { kind: "pct", value: 30 },
       dmgSkillTypePct: { kind: "pct", value: 0 },
-      dmgOtherPct: { kind: "pct", value: 0 },
+      dmgOtherPct: { kind: "pct", value: 30 },
       critRatePct: { kind: "pct", value: 24 },
       critDmgPct: { kind: "pct", value: 48 },
       penRatioPct: { kind: "pct", value: 24 },
@@ -904,7 +972,7 @@ return total;
       const base = Preview.compute(i);
       const rows = [];
       const ruptureAllowed = new Set([
-        "dmgGenericPct","dmgAttrPct","dmgSkillTypePct","critRatePct","critDmgPct",
+        "dmgGenericPct","dmgAttrPct","dmgSkillTypePct","dmgOtherPct","critRatePct","critDmgPct",
         "resReductionPct","resIgnorePct","dmgTakenPct","dmgTakenOtherPct","stunPct","sheerForce","sheerDmgBonusPct"
       ]);
 
@@ -987,7 +1055,6 @@ return total;
         if (bestPctGain > 0) row.efficiency = (row.pctGain / bestPctGain) * 100;
       }
 
-      rows.sort((a, b) => b.pctGain - a.pctGain);
       return { base, rows, bestPctGain };
     }
   }
@@ -1060,6 +1127,7 @@ return total;
       this.dom = dom;
       this.kpi = dom.byId("kpi");
       this.marginalBody = dom.byId("marginalBody");
+      this.marginalHead = dom.byId("marginalHead");
     }
 
     applyModeVisibility(mode) {
@@ -1093,17 +1161,22 @@ return total;
       }
     }
 
-    /** @param {Inputs} i @param {ReturnType<typeof MarginalAnalyzer.compute>} marginal */
-    renderMarginalTable(i, marginal) {
+    /** @param {Inputs} i @param {ReturnType<typeof MarginalAnalyzer.compute>} marginal @param {{key:string, dir:"asc"|"desc"}} sortState */
+    renderMarginalTable(i, marginal, sortState) {
       if (!this.marginalBody) return;
       this.dom.clear(this.marginalBody);
 
-      for (let idx = 0; idx < marginal.rows.length; idx++) {
-        const r = marginal.rows[idx];
+      const sortedRows = MarginalSort.sortRows(marginal.rows, sortState);
+      const topGain = MetricRanker.top3(marginal.rows, (row) => Number(row.gain));
+      const topEff = MetricRanker.top3(marginal.rows, (row) => Number(row.efficiency));
+
+      for (let idx = 0; idx < sortedRows.length; idx++) {
+        const r = sortedRows[idx];
         const tr = this.dom.el("tr");
-        
-        if (r.efficiency !== null && Number.isFinite(r.efficiency) && Math.abs(r.efficiency - 100) < 1e-9) tr.classList.add("best-row");
-        else if (r.efficiency !== null && r.efficiency >= 80) tr.classList.add("top-row");
+
+        const effRank = MetricRanker.rankClass(Number(r.efficiency), topEff);
+        if (effRank) tr.classList.add(`row-${effRank}`);
+        else if (r.efficiency !== null && Number.isFinite(r.efficiency) && r.efficiency >= 80) tr.classList.add("top-row");
 
         const tdLabel = this.dom.el("td");
         tdLabel.textContent = r.label;
@@ -1122,12 +1195,17 @@ return total;
 
         const tdGain = this.dom.el("td");
         tdGain.textContent = MathUtil.fmt0(r.gain);
+        tdGain.classList.add("metric-cell", "metric-gain");
+        const gainRank = MetricRanker.rankClass(Number(r.gain), topGain);
+        if (gainRank) tdGain.classList.add(gainRank);
 
         const tdPct = this.dom.el("td");
         tdPct.textContent = `${MathUtil.fmtSmart(r.pctGain)}%`;
 
         const tdEff = this.dom.el("td");
         tdEff.textContent = (r.efficiency === null) ? "—" : `${MathUtil.fmtMaybe1(r.efficiency)}%`;
+        tdEff.classList.add("metric-cell", "metric-eff");
+        if (effRank) tdEff.classList.add(effRank);
 
         tr.appendChild(tdLabel);
         tr.appendChild(tdOrig);
@@ -1140,6 +1218,26 @@ return total;
 
         this.marginalBody.appendChild(tr);
       }
+
+      this.renderMarginalHeader(sortState);
+    }
+
+    /** @param {{key:string, dir:"asc"|"desc"}} sortState */
+    renderMarginalHeader(sortState) {
+      if (!this.marginalHead) return;
+      this.dom.qsa("#marginalHead th[data-sort-key]").forEach((th) => {
+        if (!(th instanceof HTMLElement)) return;
+        const label = th.dataset.label || th.textContent || "";
+        const key = th.dataset.sortKey || "";
+        const arrowEl = th.querySelector(".sort-arrow");
+        if (arrowEl) arrowEl.textContent = MarginalSort.indicator(sortState, key);
+        th.classList.toggle("sorted", sortState.key === key);
+        th.setAttribute("aria-sort",
+          sortState.key !== key ? "none" : (sortState.dir === "desc" ? "descending" : "ascending")
+        );
+        const textEl = th.querySelector(".sort-label");
+        if (textEl) textEl.textContent = label;
+      });
     }
 
     _statCell(value, displayKind) {
@@ -1194,6 +1292,86 @@ return total;
       return wrap;
     }
   }
+
+  class NumericInputGuard {
+    static PLUS_ALLOWED_IDS = new Set([
+      "atk","critRatePct","critDmgPct","dmgGenericPct","dmgAttrPct","dmgSkillTypePct","dmgOtherPct",
+      "penRatioPct","penFlat","defIgnorePct","resIgnorePct","anomProf","anomDmgPct","sheerForce","sheerDmgBonusPct"
+    ]);
+
+    /** @param {HTMLInputElement} el */
+    static allowsPlus(el) {
+      return el.dataset.allowPlus === "true" || NumericInputGuard.PLUS_ALLOWED_IDS.has(el.id);
+    }
+
+    /** @param {HTMLInputElement} el */
+    static integerOnly(el) {
+      return el.dataset.integerOnly === "true";
+    }
+
+    /** @param {HTMLInputElement} el @param {string} value */
+    static sanitize(el, value) {
+      const allowPlus = NumericInputGuard.allowsPlus(el);
+      const integerOnly = NumericInputGuard.integerOnly(el);
+      let s = String(value ?? "");
+      s = s.replace(/,/g, "").replace(/\s+/g, allowPlus ? "" : "");
+      s = s.replace(/[eE]/g, "");
+      if (allowPlus) {
+        s = s.replace(/[^0-9.+]/g, "");
+        s = s.replace(/^\++/, "");
+        s = s.replace(/\+{2,}/g, "+");
+        const parts = s.split("+");
+        const cleaned = parts.map((part) => {
+          if (!part) return "";
+          if (integerOnly) return part.replace(/\./g, "");
+          const firstDot = part.indexOf(".");
+          if (firstDot === -1) return part;
+          return part.slice(0, firstDot + 1) + part.slice(firstDot + 1).replace(/\./g, "");
+        });
+        s = cleaned.join("+").replace(/\+{2,}/g, "+");
+        if (s.startsWith("+")) s = s.slice(1);
+        return s;
+      }
+      s = s.replace(/[^0-9.]/g, "");
+      if (integerOnly) return s.replace(/\./g, "");
+      const firstDot = s.indexOf(".");
+      if (firstDot === -1) return s;
+      return s.slice(0, firstDot + 1) + s.slice(firstDot + 1).replace(/\./g, "");
+    }
+
+    /** @param {HTMLInputElement} el */
+    static bind(el) {
+      const disallowKeys = new Set(["e", "E", "-", ","]);
+      if (!NumericInputGuard.allowsPlus(el)) disallowKeys.add("+");
+      el.addEventListener("keydown", (e) => {
+        if (e.ctrlKey || e.metaKey || e.altKey) return;
+        if (disallowKeys.has(e.key)) e.preventDefault();
+      });
+      el.addEventListener("beforeinput", (e) => {
+        const data = e.data;
+        if (!data) return;
+        const allowedPattern = NumericInputGuard.allowsPlus(el)
+          ? (NumericInputGuard.integerOnly(el) ? /^[0-9+]+$/ : /^[0-9.+]+$/)
+          : (NumericInputGuard.integerOnly(el) ? /^[0-9]+$/ : /^[0-9.]+$/);
+        if (!allowedPattern.test(data)) e.preventDefault();
+      });
+      el.addEventListener("input", () => {
+        const cleaned = NumericInputGuard.sanitize(el, el.value);
+        if (el.value !== cleaned) el.value = cleaned;
+      });
+      el.addEventListener("paste", (e) => {
+        e.preventDefault();
+        const pasted = (e.clipboardData || window.clipboardData)?.getData("text") || "";
+        const cleaned = NumericInputGuard.sanitize(el, pasted);
+        const start = el.selectionStart ?? el.value.length;
+        const end = el.selectionEnd ?? el.value.length;
+        const next = el.value.slice(0, start) + cleaned + el.value.slice(end);
+        el.value = NumericInputGuard.sanitize(el, next);
+        el.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+    }
+  }
+
   class UiApplier {
     /** @param {Dom} dom */
     constructor(dom) {
@@ -1316,11 +1494,13 @@ return total;
       this.parser = new InputParser(this.dom);
       this.renderer = new Renderer(this.dom);
       this.applier = new UiApplier(this.dom);
+      this.sortState = { ...MarginalSort.DEFAULT };
+
+      this._wireNumericGuards();
 
       // Debounced refresh: coalesce multiple input events into one paint-frame.
       this._refreshPending = false;
 
-      this._initNumericInputRestrictions();
       this._wireEvents();
       this.refresh();
     }
@@ -1367,7 +1547,7 @@ return total;
       this.renderer.renderKpi(kpiItems);
 
       const marginal = MarginalAnalyzer.compute(i);
-      this.renderer.renderMarginalTable(i, marginal);
+      this.renderer.renderMarginalTable(i, marginal, this.sortState);
     }
 
 
@@ -1390,77 +1570,10 @@ return total;
       if (label) label.classList.toggle("is-disabled", !!disabled);
     }
 
-    _initNumericInputRestrictions() {
-      const selector = 'input[data-number-only="true"], input[data-allow-plus="true"]';
-      const navigationKeys = new Set([
-        "Backspace", "Delete", "Tab", "Enter", "Escape",
-        "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown",
-        "Home", "End"
-      ]);
 
-      const sanitizeValue = (value, allowPlus) => {
-        let s = String(value ?? "").replace(/\s+/g, "");
-        if (!s) return "";
-
-        if (allowPlus) {
-          s = s.replace(/[^0-9+\-.]/g, "");
-          s = s.replace(/(?!^)-/g, "");
-          const hadLeadingMinus = s.startsWith("-");
-          const body = hadLeadingMinus ? s.slice(1) : s;
-          const parts = body.split("+").map((part) => {
-            if (!part) return "";
-            const cleaned = part.replace(/-/g, "");
-            const firstDot = cleaned.indexOf(".");
-            if (firstDot === -1) return cleaned;
-            return cleaned.slice(0, firstDot + 1) + cleaned.slice(firstDot + 1).replace(/\./g, "");
-          });
-          return (hadLeadingMinus ? "-" : "") + parts.join("+");
-        }
-
-        s = s.replace(/[^0-9\-.]/g, "");
-        s = s.replace(/(?!^)-/g, "");
-        const firstDot = s.indexOf(".");
-        if (firstDot !== -1) {
-          s = s.slice(0, firstDot + 1) + s.slice(firstDot + 1).replace(/\./g, "");
-        }
-        return s;
-      };
-
-      this.dom.qsa(selector).forEach((node) => {
-        if (!(node instanceof HTMLInputElement)) return;
-        const allowPlus = node.dataset.allowPlus === "true";
-
-        node.addEventListener("keydown", (e) => {
-          if (e.ctrlKey || e.metaKey || e.altKey) return;
-          if (navigationKeys.has(e.key)) return;
-          if (/^[0-9]$/.test(e.key)) return;
-          if (e.key === ".") return;
-          if (e.key === "-" && node.selectionStart === 0 && !node.value.includes("-")) return;
-          if (allowPlus && e.key === "+") return;
-          e.preventDefault();
-        });
-
-        node.addEventListener("input", () => {
-          const sanitized = sanitizeValue(node.value, allowPlus);
-          if (node.value !== sanitized) node.value = sanitized;
-        });
-
-        node.addEventListener("paste", (e) => {
-          const pasted = e.clipboardData?.getData("text") ?? "";
-          const sanitized = sanitizeValue(pasted, allowPlus);
-          e.preventDefault();
-          const start = node.selectionStart ?? node.value.length;
-          const end = node.selectionEnd ?? node.value.length;
-          const next = node.value.slice(0, start) + sanitized + node.value.slice(end);
-          node.value = sanitizeValue(next, allowPlus);
-          const caret = Math.min((start + sanitized.length), node.value.length);
-          try { node.setSelectionRange(caret, caret); } catch {}
-          node.dispatchEvent(new Event("input", { bubbles: true }));
-        });
-
-        node.addEventListener("drop", (e) => {
-          e.preventDefault();
-        });
+    _wireNumericGuards() {
+      this.dom.qsa('input[data-number-only="true"]').forEach((el) => {
+        if (el instanceof HTMLInputElement) NumericInputGuard.bind(el);
       });
     }
 
@@ -1539,6 +1652,16 @@ return total;
         } else {
           MarginalAppliedStore.set(key, kind, v);
         }
+        this.requestRefresh();
+      });
+
+      this.dom.byId("marginalHead")?.addEventListener("click", (e) => {
+        const target = /** @type {HTMLElement} */ (e.target);
+        const th = /** @type {HTMLElement|null} */ (target.closest("th[data-sort-key]"));
+        if (!th) return;
+        const key = String(th.dataset.sortKey || "");
+        if (!key) return;
+        this.sortState = MarginalSort.nextState(this.sortState, key);
         this.requestRefresh();
       });
     }
